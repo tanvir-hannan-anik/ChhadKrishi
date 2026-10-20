@@ -7,6 +7,7 @@ import { analyzePlantPhoto } from "@/lib/ai/plant-analysis";
 import { gardenContextNote } from "@/lib/ai/prompts";
 import { takeAiQuota } from "@/lib/ai/rate-limit";
 import { gardenContext } from "@/lib/garden/store";
+import { analyzeWithVision, isMlConfigured, visionEvidenceNote, type VisionReport } from "@/lib/ml/service";
 
 const STATUS_FOR = { AI_AUTH_FAILED: 502, AI_RATE_LIMITED: 503, AI_UNAVAILABLE: 503, AI_BAD_OUTPUT: 502, AI_NOT_CONFIGURED: 503 } as const;
 
@@ -36,13 +37,25 @@ export async function POST(request: Request) {
   if (!takeAiQuota("analyze", session.user.id)) return errorResponse("USER_RATE_LIMITED", 429);
 
   try {
-    const context = gardenContextNote(await gardenContext(session.user.id));
-    const analysis = await analyzePlantPhoto({ image: check.bytes, mediaType: check.mediaType, note, lang, context, abortSignal: request.signal });
-    return Response.json({ analysis });
+    const [context, vision] = await Promise.all([gardenContext(session.user.id).then(gardenContextNote), measurePhoto(check.bytes, check.mediaType, request.signal)]);
+    const evidence = vision ? visionEvidenceNote(vision) : "";
+    const analysis = await analyzePlantPhoto({ image: check.bytes, mediaType: check.mediaType, note, lang, context, evidence, abortSignal: request.signal });
+    return Response.json({ analysis, vision });
   } catch (error) {
     if (request.signal.aborted) return new Response(null, { status: 499 });
     const code = classifyAiError(error);
     logAiError("analyze", error);
     return errorResponse(code, code in STATUS_FOR ? STATUS_FOR[code as keyof typeof STATUS_FOR] : 500);
+  }
+}
+
+/** OpenCV + YOLO measurements are optional evidence: a slow or failing ML service never blocks the analysis. */
+async function measurePhoto(image: Uint8Array, mediaType: string, signal: AbortSignal): Promise<VisionReport | null> {
+  if (!isMlConfigured()) return null;
+  try {
+    return await analyzeWithVision(image, mediaType, signal);
+  } catch (error) {
+    console.error(`[analyze] vision measurements skipped (${(error as { name?: string })?.name ?? "unknown"})`);
+    return null;
   }
 }

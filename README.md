@@ -179,6 +179,7 @@ All variables are server-side. See [`.env.example`](.env.example) for the annota
 | `YOUTUBE_API_KEY` | – | YouTube Data API v3 for video cards with thumbnails. |
 | `SUPABASE_DB_URL` | – | Supabase Postgres (pooler) for the RAG library. |
 | `CHHADKRISHI_EMBEDDING_MODEL` | – | Embedding model (default `qwen/qwen3-embedding-8b`, multilingual, stored at 1024 dimensions). |
+| `ML_SERVICE_URL`, `ML_SERVICE_TOKEN` | – | Self-hosted [ML service](ml-service/README.md) (fits Render's free plan): "Listen" (Microsoft neural TTS) and OpenCV + YOLO photo measurements. |
 
 > **OpenRouter note:** free models are limited to 50 requests/day on accounts without credit (1,000/day after adding at least $10). Image generation and embeddings are paid models and need a credit balance.
 
@@ -259,3 +260,4 @@ The build itself needs no secrets; a missing `DATABASE_URL` only fails requests 
 - **FAO manuals** used by the reference library: © FAO. Reproduction and dissemination for educational or other non-commercial purposes is authorised provided the source is fully acknowledged; commercial reproduction requires FAO's written permission. *A Garden for Everyone* (FAO, 2005) · *Diversifying Rural Incomes Through Home Gardens* (FAO, 2004).
 - **Problem photos:** Wikimedia Commons contributors, credited on each problem page.
 - **Videos** are linked, not hosted; they belong to their creators on YouTube.
+- **Speech and vision** (ml-service): YOLOv8s leaf detector by FODUU AI; voices by Microsoft via edge-tts. Voice input uses the browser's speech recognition.

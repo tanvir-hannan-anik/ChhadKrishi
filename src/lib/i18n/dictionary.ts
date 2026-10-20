@@ -180,6 +180,15 @@ export interface AppDictionary {
     loadFailed: string;
     disclaimer: string;
     analyzeLink: string;
+    voice: {
+      start: string;
+      stop: string;
+      recording: string;
+      listen: string;
+      stopListening: string;
+      loadingAudio: string;
+      errors: Record<"micDenied" | "micUnsupported" | "nothingHeard" | "failed", string>;
+    };
   };
   analyze: {
     title: string;
@@ -525,6 +534,20 @@ const bn: Omit<Dictionary, keyof FeatureDictionary | keyof DesignerDictionary | 
     loadFailed: "কথোপকথন লোড করা যায়নি।",
     disclaimer: "এআই ভুল করতে পারে। বড় সমস্যায় স্থানীয় কৃষি কর্মকর্তার পরামর্শ নিন।",
     analyzeLink: "ছবি বিশ্লেষণ",
+    voice: {
+      start: "কথা বলে প্রশ্ন করুন",
+      stop: "রেকর্ডিং শেষ করুন",
+      recording: "শুনছি… শেষ হলে আবার চাপুন",
+      listen: "শুনুন",
+      stopListening: "থামান",
+      loadingAudio: "লোড হচ্ছে…",
+      errors: {
+        micDenied: "মাইক্রোফোন ব্যবহারের অনুমতি দেওয়া হয়নি। ব্রাউজারের সেটিংস থেকে অনুমতি দিন।",
+        micUnsupported: "এই ব্রাউজারে ভয়েস রেকর্ডিং কাজ করে না।",
+        nothingHeard: "কোনো কথা শোনা যায়নি। আবার চেষ্টা করুন।",
+        failed: "ভয়েস সেবা এখন কাজ করছে না। একটু পরে আবার চেষ্টা করুন।",
+      },
+    },
   },
   analyze: {
     title: "গাছের ছবি বিশ্লেষণ",
@@ -885,6 +908,20 @@ const en: Omit<Dictionary, keyof FeatureDictionary | keyof DesignerDictionary | 
     loadFailed: "Couldn't load the conversation.",
     disclaimer: "AI can make mistakes. For serious problems, consult your local agriculture officer.",
     analyzeLink: "Photo analysis",
+    voice: {
+      start: "Ask by voice",
+      stop: "Stop recording",
+      recording: "Listening… tap again when you're done",
+      listen: "Listen",
+      stopListening: "Stop",
+      loadingAudio: "Loading…",
+      errors: {
+        micDenied: "Microphone access was blocked. Allow it in your browser settings.",
+        micUnsupported: "Voice recording doesn't work in this browser.",
+        nothingHeard: "Didn't catch anything. Please try again.",
+        failed: "The voice service isn't working right now. Try again shortly.",
+      },
+    },
   },
   analyze: {
     title: "Plant Photo Analysis",

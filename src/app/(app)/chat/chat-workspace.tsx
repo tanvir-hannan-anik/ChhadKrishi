@@ -28,6 +28,7 @@ import { AppHeader } from "@/components/app-header";
 import { Leaf } from "@/components/brand";
 import { Markdown } from "@/components/chat/markdown";
 import { ResourceCards } from "@/components/chat/resource-cards";
+import { ListenButton, MicButton } from "@/components/chat/voice";
 import { EASE_OUT } from "@/components/motion/reveal";
 import { aiErrorCodeOf } from "@/lib/ai/client-errors";
 import { openAuthModal } from "@/lib/auth/flow";
@@ -45,6 +46,8 @@ interface ChatWorkspaceProps {
   initialMessages: UIMessage[];
   initialQuestion: string;
   aiConfigured: boolean;
+  /** Read-aloud (the self-hosted ML service) is available. Voice input is browser-side. */
+  speechConfigured: boolean;
 }
 
 export function ChatWorkspace(props: ChatWorkspaceProps) {
@@ -239,6 +242,7 @@ export function ChatWorkspace(props: ChatWorkspaceProps) {
                     message={message}
                     streaming={status === "streaming" && message.id === messages.at(-1)?.id}
                     canRegenerate={message.id === lastAssistantId && status === "ready" && !aiUnavailable}
+                    canListen={props.speechConfigured}
                     onRegenerate={() => void regenerate()}
                   />
                 ))}
@@ -380,11 +384,13 @@ function MessageBubble({
   message,
   streaming,
   canRegenerate,
+  canListen,
   onRegenerate,
 }: {
   message: ChatUIMessage;
   streaming: boolean;
   canRegenerate: boolean;
+  canListen: boolean;
   onRegenerate: () => void;
 }) {
   const { t } = useLanguage();
@@ -443,6 +449,7 @@ function MessageBubble({
             >
               {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} {copied ? c.copied : c.copy}
             </button>
+            {canListen && <ListenButton text={text} />}
             {canRegenerate && (
               <button type="button" onClick={onRegenerate} className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs hover:bg-moss hover:text-forest">
                 <RotateCcw className="h-3.5 w-3.5" /> {c.regenerate}
@@ -552,6 +559,7 @@ function ChatComposer({
   const [image, setImage] = useState<{ file: File; url: string } | null>(null);
   const [preparing, setPreparing] = useState(false);
   const [problem, setProblem] = useState<ImageProblem | null>(null);
+  const [voiceError, setVoiceError] = useState<keyof typeof c.voice.errors | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const cameraRef = useRef<HTMLInputElement | null>(null);
 
@@ -692,6 +700,12 @@ function ChatComposer({
               >
                 <Camera className="h-5 w-5" />
               </button>
+              <MicButton
+                disabled={disabled || busy}
+                onError={setVoiceError}
+                // Appended, not sent: the gardener checks the transcript first.
+                onText={(spoken) => changeText(text.trim() ? `${text.trimEnd()} ${spoken}` : spoken)}
+              />
             </div>
             {busy ? (
               <motion.button
@@ -717,9 +731,9 @@ function ChatComposer({
             )}
           </div>
         </div>
-        {problem ? (
+        {problem || voiceError ? (
           <p role="alert" className="mt-2 text-center text-xs text-clay">
-            {t.analyze[problem]}
+            {problem ? t.analyze[problem] : voiceError && c.voice.errors[voiceError]}
           </p>
         ) : (
           <p className="mt-1.5 text-center text-[11px] leading-tight text-ink-faint sm:mt-2 sm:text-xs">{c.disclaimer}</p>

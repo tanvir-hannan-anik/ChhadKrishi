@@ -13,6 +13,7 @@ import {
   Leaf as LeafIcon,
   Loader2,
   MessageCircle,
+  ScanEye,
   RotateCcw,
   ShieldCheck,
   Sparkles,
@@ -30,12 +31,13 @@ import { setChatDraft } from "@/lib/chat-draft";
 import type { ChatResources } from "@/lib/chat/resources";
 import { checkImageFile, prepareImage, type ImageProblem } from "@/lib/image";
 import { useLanguage } from "@/lib/i18n/language-context";
+import { CONFIDENT_DETECTION, type VisionReport } from "@/lib/ml/vision";
 
 type Phase =
   | { name: "empty" }
   | { name: "ready" }
   | { name: "analyzing" }
-  | { name: "done"; result: PlantAnalysis }
+  | { name: "done"; result: PlantAnalysis; vision: VisionReport | null }
   | { name: "error"; code: AiErrorCode };
 
 export function PlantAnalyzer({ aiConfigured }: { aiConfigured: boolean }) {
@@ -88,10 +90,10 @@ export function PlantAnalyzer({ aiConfigured }: { aiConfigured: boolean }) {
     body.set("lang", lang);
     try {
       const response = await fetch("/api/analyze", { method: "POST", body, signal: controller.signal });
-      const data = (await response.json().catch(() => null)) as { analysis?: PlantAnalysis; error?: string } | null;
+      const data = (await response.json().catch(() => null)) as { analysis?: PlantAnalysis; vision?: VisionReport | null; error?: string } | null;
       if (controller.signal.aborted) return;
       if (response.ok && data?.analysis) {
-        setPhase({ name: "done", result: data.analysis });
+        setPhase({ name: "done", result: data.analysis, vision: data.vision ?? null });
         return;
       }
       const code = aiErrorCodeOf({ statusCode: response.status, responseBody: JSON.stringify(data ?? {}) });
@@ -330,7 +332,14 @@ export function PlantAnalyzer({ aiConfigured }: { aiConfigured: boolean }) {
                 </motion.div>
               )}
               {phase.name === "done" && (
-                <AnalysisResult key="result" result={phase.result} onAsk={() => askInChat(phase.result)} onReset={reset} />
+                <AnalysisResult
+                  key="result"
+                  result={phase.result}
+                  vision={phase.vision}
+                  photoUrl={photo?.url ?? null}
+                  onAsk={() => askInChat(phase.result)}
+                  onReset={reset}
+                />
               )}
               {(phase.name === "empty" || phase.name === "ready") && <Tips key="tips" />}
             </AnimatePresence>
@@ -411,7 +420,19 @@ function Tips() {
 const LEVEL_TONE = { low: "bg-sprout/70 text-forest", medium: "bg-[#f4e3b5] text-[#7a5a12]", high: "bg-clay/15 text-clay" } as const;
 const HEALTH_TONE = { healthy: "bg-sprout/70 text-forest", issues: "bg-clay/15 text-clay", unclear: "bg-moss text-ink-soft" } as const;
 
-function AnalysisResult({ result, onAsk, onReset }: { result: PlantAnalysis; onAsk: () => void; onReset: () => void }) {
+function AnalysisResult({
+  result,
+  vision,
+  photoUrl,
+  onAsk,
+  onReset,
+}: {
+  result: PlantAnalysis;
+  vision: VisionReport | null;
+  photoUrl: string | null;
+  onAsk: () => void;
+  onReset: () => void;
+}) {
   const { t } = useLanguage();
   const r = t.analyze.results;
   const container = { hidden: {}, shown: { transition: { staggerChildren: 0.08 } } };
@@ -460,6 +481,12 @@ function AnalysisResult({ result, onAsk, onReset }: { result: PlantAnalysis; onA
             ))}
           </ul>
         </motion.section>
+      )}
+
+      {vision && (
+        <motion.div variants={item}>
+          <VisionCard vision={vision} photoUrl={photoUrl} />
+        </motion.div>
       )}
 
       {result.isPlant && (
@@ -552,6 +579,107 @@ function AnalysisResult({ result, onAsk, onReset }: { result: PlantAnalysis; onA
         {r.disclaimer}
       </motion.p>
     </motion.div>
+  );
+}
+
+const VISION_TEXT = {
+  bn: {
+    title: "কম্পিউটার ভিশন পরীক্ষা",
+    subtitle: "OpenCV ও YOLO দিয়ে ছবির মাপজোখ — এআই এই তথ্যের সাথে মিলিয়ে দেখেছে",
+    leaves: (n: number) => `${n}টি পাতা শনাক্ত`,
+    noLeaves: "নিশ্চিতভাবে কোনো পাতা শনাক্ত হয়নি",
+    colourTitle: (scope: "leaves" | "frame") => (scope === "leaves" ? "পাতার রঙ" : "ছবির রঙ (মাটি/টবও থাকতে পারে)"),
+    bands: { green: "সবুজ", yellow: "হলুদ", brown: "বাদামি", pale: "সাদাটে" },
+    spots: (n: number) => `সবুজ অংশে ${n}টি ছোট দাগ`,
+    quality: { blurry: "ছবি ঝাপসা", too_dark: "ছবি অন্ধকার", too_bright: "ছবি বেশি উজ্জ্বল", harsh_light: "কড়া আলো/ছায়া" },
+    photoOk: "ছবির মান ভালো",
+  },
+  en: {
+    title: "Computer-vision check",
+    subtitle: "Measured with OpenCV and YOLO — the AI cross-checked its reading against these",
+    leaves: (n: number) => `${n} leaf region${n === 1 ? "" : "s"} detected`,
+    noLeaves: "No leaves detected with confidence",
+    colourTitle: (scope: "leaves" | "frame") => (scope === "leaves" ? "Leaf colour" : "Photo colour (may include soil/pots)"),
+    bands: { green: "Green", yellow: "Yellow", brown: "Brown", pale: "Pale/white" },
+    spots: (n: number) => `${n} small spot${n === 1 ? "" : "s"} on green tissue`,
+    quality: { blurry: "Blurry", too_dark: "Too dark", too_bright: "Too bright", harsh_light: "Harsh light" },
+    photoOk: "Photo quality is good",
+  },
+} as const;
+
+const BANDS = ["green", "yellow", "brown", "pale"] as const;
+const BAND_COLOUR = { green: "bg-leaf", yellow: "bg-[#e3b521]", brown: "bg-[#8a5a2b]", pale: "bg-[#d9d4c7]" } as const;
+
+/** OpenCV + YOLO measurements: detected leaves drawn on the photo, colour shares and photo quality. */
+function VisionCard({ vision, photoUrl }: { vision: VisionReport; photoUrl: string | null }) {
+  const { lang } = useLanguage();
+  const v = VISION_TEXT[lang];
+  const leaves = vision.detections.filter((d) => d.confidence >= CONFIDENT_DETECTION);
+  const colour = vision.colour;
+
+  return (
+    <section className="rounded-3xl bg-white p-6 shadow-soft ring-1 ring-line">
+      <h3 className="flex items-center gap-2 font-semibold text-ink">
+        <ScanEye className="h-5 w-5 text-leaf" /> {v.title}
+      </h3>
+      <p className="mt-0.5 text-xs text-ink-faint">{v.subtitle}</p>
+
+      {photoUrl && leaves.length > 0 && (
+        <div className="relative mt-4 overflow-hidden rounded-2xl ring-1 ring-line">
+          {/* eslint-disable-next-line @next/next/no-img-element -- local preview of the analysed photo */}
+          <img src={photoUrl} alt="" className="block w-full" />
+          {leaves.map((d, i) => (
+            <span
+              key={i}
+              aria-hidden
+              className="absolute rounded-md border-2 border-lime shadow-[0_0_0_1px_rgb(0_0_0/0.25)]"
+              style={{ left: `${d.box[0] * 100}%`, top: `${d.box[1] * 100}%`, width: `${d.box[2] * 100}%`, height: `${d.box[3] * 100}%` }}
+            >
+              {/* Location and confidence only: the detector's crop names are unreliable on real photos. */}
+              <span className="absolute -top-px -left-px rounded-br-md bg-lime px-1 text-[10px] leading-4 font-semibold whitespace-nowrap text-canopy">
+                {Math.round(d.confidence * 100)}%
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-2 text-sm">
+        <span className="rounded-full bg-moss px-3 py-1 text-forest">{leaves.length ? v.leaves(leaves.length) : v.noLeaves}</span>
+        {vision.quality.ok ? (
+          <span className="rounded-full bg-sprout/70 px-3 py-1 text-forest">{v.photoOk}</span>
+        ) : (
+          vision.quality.issues.map((issue) => (
+            <span key={issue} className="rounded-full bg-[#fbf3dd] px-3 py-1 text-[#6b4f10]">
+              {v.quality[issue]}
+            </span>
+          ))
+        )}
+      </div>
+
+      {colour && (
+        <div className="mt-4">
+          <p className="text-sm font-medium text-ink">{v.colourTitle(colour.scope)}</p>
+          <div
+            role="img"
+            aria-label={BANDS.map((band) => `${v.bands[band]} ${Math.round(colour[band] * 100)}%`).join(", ")}
+            className="mt-2 flex h-3 overflow-hidden rounded-full bg-moss"
+          >
+            {BANDS.map((band) => (
+              <span key={band} className={BAND_COLOUR[band]} style={{ width: `${colour[band] * 100}%` }} />
+            ))}
+          </div>
+          <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-soft">
+            {BANDS.map((band) => (
+              <li key={band} className="inline-flex items-center gap-1.5">
+                <span className={`h-2.5 w-2.5 rounded-full ${BAND_COLOUR[band]}`} /> {v.bands[band]} {Math.round(colour[band] * 100)}%
+              </li>
+            ))}
+            {colour.spots > 0 && <li>{v.spots(colour.spots)}</li>}
+          </ul>
+        </div>
+      )}
+    </section>
   );
 }
 

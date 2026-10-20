@@ -1,0 +1,8 @@
+# Lean set for a 512 MB host. Versions tested together (Python 3.12-3.14, CPU).
+fastapi==0.156.0
+uvicorn==0.54.0
+python-multipart==0.0.32
+edge-tts==7.3.1
+opencv-python-headless==5.0.0.93
+onnxruntime==1.31.0
+numpy==2.5.4

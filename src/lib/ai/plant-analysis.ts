@@ -12,6 +12,8 @@ export async function analyzePlantPhoto(input: {
   note: string;
   lang: Lang;
   context?: string;
+  /** OpenCV + YOLO measurements of the same photo, when the ML service is available. */
+  evidence?: string;
   abortSignal?: AbortSignal;
 }): Promise<PlantAnalysis> {
   const instruction =
@@ -21,7 +23,7 @@ export async function analyzePlantPhoto(input: {
 
   const { output } = await generateText({
     model: await getModel("vision"),
-    system: analysisSystemPrompt(input.lang) + (input.context ?? ""),
+    system: analysisSystemPrompt(input.lang) + (input.context ?? "") + (input.evidence ?? ""),
     messages: [
       {
         role: "user",
