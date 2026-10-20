@@ -12,10 +12,11 @@ A small CPU-only API that the Next.js server calls. Sized to run on **Render's f
 Everything except `/health` needs `Authorization: Bearer <ML_SERVICE_TOKEN>`. Only the Next.js
 server knows the token; browsers never talk to this service.
 
-**Voice input is not here.** The chat mic uses the browser's own speech recognition (free,
-understands Bangla `bn-BD` and English). A Whisper model needs about 2 GB of RAM, which does not
-fit on a 512 MB host. It works in Chrome, Edge and Safari; in Chrome the audio goes to Google's
-speech service. Firefox has no speech recognition, so the mic is hidden there.
+**Voice input is not here.** A Whisper model needs about 2 GB of RAM, which does not fit on a
+512 MB host. The chat mic uses Whisper large-v3 on Groq when `GROQ_API_KEY` is set in the
+website, and the browser's own speech recognition otherwise. Read-aloud goes straight to the
+official Azure Speech API when `AZURE_SPEECH_KEY`/`AZURE_SPEECH_REGION` are set in the website,
+and to this service otherwise.
 
 ## What the vision step does (and doesn't)
 

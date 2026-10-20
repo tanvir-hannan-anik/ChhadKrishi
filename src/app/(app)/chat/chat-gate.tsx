@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { AuthRequired } from "@/components/auth/auth-required";
 import { isAiConfigured } from "@/lib/ai/config";
 import { getPageSession } from "@/lib/auth/session";
-import { isMlConfigured } from "@/lib/ml/service";
+import { isSpeechToTextConfigured, isTextToSpeechConfigured } from "@/lib/speech/providers";
 import { listConversations, loadMessages } from "@/lib/chat/store";
 import { ChatWorkspace } from "./chat-workspace";
 
@@ -28,7 +28,8 @@ export async function ChatGate({ conversationId, question }: { conversationId: s
       initialMessages={messages}
       initialQuestion={question}
       aiConfigured={isAiConfigured()}
-      speechConfigured={isMlConfigured()}
+      speechConfigured={isTextToSpeechConfigured()}
+      voiceInputConfigured={isSpeechToTextConfigured()}
     />
   );
 }

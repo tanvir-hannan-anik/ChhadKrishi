@@ -12,7 +12,8 @@ const RULES = {
   resources: { windowMs: 60_000, max: 10 },
   designerTurn: { windowMs: 60_000, max: 20 },
   designerPlan: { windowMs: 60_000, max: 3 },
-  // Read-aloud runs on the self-hosted ML service.
+  // Voice input (Groq Whisper) and read-aloud (Azure voices).
+  speechToText: { windowMs: 60_000, max: 12 },
   textToSpeech: { windowMs: 60_000, max: 20 },
   // Image generation is the costliest call in the app.
   designerRender: { windowMs: 10 * 60_000, max: 5 },

@@ -35,20 +35,103 @@ const useSpeechSupported = () => useSyncExternalStore(noSubscribe, () => recogni
 
 const currentLang = () => (document.documentElement.lang === "en" ? "en" : "bn");
 
+type MicState = "idle" | "recording" | "transcribing";
+interface MicProps {
+  disabled: boolean;
+  onText: (text: string) => void;
+  onError: (error: VoiceError | null) => void;
+}
+
 /**
- * Voice input with the browser's own speech recognition (free, understands Bangla, and needs no
- * server model). The text is handed back for the gardener to check and send, never sent
- * automatically. The browser may send the audio to its vendor's speech service (Google in
- * Chrome); hidden when the browser has no speech recognition.
+ * Voice input. The text is handed back for the gardener to check and send, never sent
+ * automatically. With `server`, audio is recorded and transcribed by Whisper on the server
+ * (Groq; works in every modern browser and detects Bangla vs English itself). Without it, the
+ * browser's own speech recognition is used, and the button is hidden where there is none.
  */
-export function MicButton({ disabled, onText, onError }: { disabled: boolean; onText: (text: string) => void; onError: (error: VoiceError | null) => void }) {
-  const { t } = useLanguage();
-  const v = t.chat.voice;
+export function MicButton({ server, ...props }: MicProps & { server: boolean }) {
+  return server ? <RecorderMic {...props} /> : <BrowserMic {...props} />;
+}
+
+const MAX_RECORDING_MS = 60_000;
+const MIME_CANDIDATES = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+
+function RecorderMic({ disabled, onText, onError }: MicProps) {
+  const [state, setState] = useState<MicState>("idle");
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const timerRef = useRef<number | null>(null);
+
+  // Release the microphone if the composer unmounts mid-recording.
+  useEffect(
+    () => () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      const recorder = recorderRef.current;
+      if (recorder && recorder.state !== "inactive") {
+        recorder.onstop = null;
+        recorder.stop();
+        recorder.stream.getTracks().forEach((track) => track.stop());
+      }
+    },
+    [],
+  );
+
+  const transcribe = async (blob: Blob) => {
+    setState("transcribing");
+    try {
+      const form = new FormData();
+      form.append("audio", blob, "voice");
+      const response = await fetch("/api/speech/stt", { method: "POST", body: form });
+      if (!response.ok) return onError("failed");
+      const { text } = (await response.json()) as { text: string };
+      if (text.trim()) onText(text.trim());
+      else onError("nothingHeard");
+    } catch {
+      onError("failed");
+    } finally {
+      setState("idle");
+    }
+  };
+
+  const start = async () => {
+    onError(null);
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return onError("micUnsupported");
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    } catch {
+      return onError("micDenied");
+    }
+    const mimeType = MIME_CANDIDATES.find((type) => MediaRecorder.isTypeSupported(type));
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType, audioBitsPerSecond: 32_000 } : undefined);
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    recorder.onstop = () => {
+      stream.getTracks().forEach((track) => track.stop());
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      const blob = new Blob(chunks, { type: recorder.mimeType.split(";")[0] || "audio/webm" });
+      if (blob.size < 1000) {
+        setState("idle");
+        return onError("nothingHeard");
+      }
+      void transcribe(blob);
+    };
+    recorderRef.current = recorder;
+    recorder.start();
+    setState("recording");
+    timerRef.current = window.setTimeout(() => recorder.state === "recording" && recorder.stop(), MAX_RECORDING_MS);
+  };
+
+  const stop = () => {
+    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+  };
+
+  return <MicView state={state} disabled={disabled} onClick={state === "recording" ? stop : () => void start()} />;
+}
+
+function BrowserMic({ disabled, onText, onError }: MicProps) {
   const supported = useSpeechSupported();
   const [recording, setRecording] = useState(false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
-  // Release the microphone if the composer unmounts mid-recording.
   useEffect(() => () => recognitionRef.current?.abort(), []);
 
   const start = useCallback(() => {
@@ -83,21 +166,27 @@ export function MicButton({ disabled, onText, onError }: { disabled: boolean; on
   }, [onError, onText]);
 
   if (!supported) return null;
-  const label = recording ? v.stop : v.start;
+  return <MicView state={recording ? "recording" : "idle"} disabled={disabled} onClick={recording ? () => recognitionRef.current?.stop() : start} />;
+}
+
+function MicView({ state, disabled, onClick }: { state: MicState; disabled: boolean; onClick: () => void }) {
+  const { t } = useLanguage();
+  const v = t.chat.voice;
+  const label = state === "recording" ? v.stop : state === "transcribing" ? v.transcribing : v.start;
   return (
     <>
       <button
         type="button"
-        onClick={recording ? () => recognitionRef.current?.stop() : start}
-        disabled={disabled && !recording}
+        onClick={onClick}
+        disabled={(disabled && state !== "recording") || state === "transcribing"}
         aria-label={label}
-        aria-pressed={recording}
+        aria-pressed={state === "recording"}
         title={label}
         className={`relative inline-flex h-11 w-11 items-center justify-center rounded-full transition-colors disabled:opacity-40 ${
-          recording ? "bg-clay text-paper" : "text-ink-soft hover:bg-moss hover:text-forest"
+          state === "recording" ? "bg-clay text-paper" : "text-ink-soft hover:bg-moss hover:text-forest"
         }`}
       >
-        {recording && (
+        {state === "recording" && (
           <motion.span
             aria-hidden
             className="absolute inset-0 rounded-full ring-2 ring-clay/50"
@@ -105,11 +194,11 @@ export function MicButton({ disabled, onText, onError }: { disabled: boolean; on
             transition={{ duration: 1.1, repeat: Infinity, ease: "easeOut" }}
           />
         )}
-        {recording ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
+        {state === "transcribing" ? <Loader2 className="h-5 w-5 animate-spin" /> : state === "recording" ? <Square className="h-4 w-4 fill-current" /> : <Mic className="h-5 w-5" />}
       </button>
-      {recording && (
+      {state !== "idle" && (
         <span role="status" className="ml-1 text-xs text-ink-soft max-sm:sr-only">
-          {v.recording}
+          {state === "recording" ? v.recording : v.transcribing}
         </span>
       )}
     </>

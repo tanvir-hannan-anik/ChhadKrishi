@@ -184,6 +184,7 @@ export interface AppDictionary {
       start: string;
       stop: string;
       recording: string;
+      transcribing: string;
       listen: string;
       stopListening: string;
       loadingAudio: string;
@@ -538,6 +539,7 @@ const bn: Omit<Dictionary, keyof FeatureDictionary | keyof DesignerDictionary | 
       start: "কথা বলে প্রশ্ন করুন",
       stop: "রেকর্ডিং শেষ করুন",
       recording: "শুনছি… শেষ হলে আবার চাপুন",
+      transcribing: "লেখায় রূপান্তর হচ্ছে…",
       listen: "শুনুন",
       stopListening: "থামান",
       loadingAudio: "লোড হচ্ছে…",
@@ -912,6 +914,7 @@ const en: Omit<Dictionary, keyof FeatureDictionary | keyof DesignerDictionary | 
       start: "Ask by voice",
       stop: "Stop recording",
       recording: "Listening… tap again when you're done",
+      transcribing: "Turning your voice into text…",
       listen: "Listen",
       stopListening: "Stop",
       loadingAudio: "Loading…",

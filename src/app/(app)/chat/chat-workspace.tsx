@@ -46,8 +46,10 @@ interface ChatWorkspaceProps {
   initialMessages: UIMessage[];
   initialQuestion: string;
   aiConfigured: boolean;
-  /** Read-aloud (the self-hosted ML service) is available. Voice input is browser-side. */
+  /** Read-aloud (Azure voices) is available. */
   speechConfigured: boolean;
+  /** Server-side voice input (Groq Whisper); otherwise the browser's speech recognition is used. */
+  voiceInputConfigured: boolean;
 }
 
 export function ChatWorkspace(props: ChatWorkspaceProps) {
@@ -277,6 +279,7 @@ export function ChatWorkspace(props: ChatWorkspaceProps) {
             disabled={aiUnavailable}
             busy={busy}
             initialText={aiUnavailable ? props.initialQuestion : ""}
+            serverVoiceInput={props.voiceInputConfigured}
             onSend={send}
             onStop={() => void stop()}
           />
@@ -542,6 +545,7 @@ function ChatComposer({
   disabled,
   busy,
   initialText,
+  serverVoiceInput,
   onSend,
   onStop,
 }: {
@@ -550,6 +554,7 @@ function ChatComposer({
   disabled: boolean;
   busy: boolean;
   initialText: string;
+  serverVoiceInput: boolean;
   onSend: (text: string, image: File | null, imageUrl: string | null) => void;
   onStop: () => void;
 }) {
@@ -701,6 +706,7 @@ function ChatComposer({
                 <Camera className="h-5 w-5" />
               </button>
               <MicButton
+                server={serverVoiceInput}
                 disabled={disabled || busy}
                 onError={setVoiceError}
                 // Appended, not sent: the gardener checks the transcript first.
