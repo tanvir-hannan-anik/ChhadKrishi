@@ -1,26 +1,135 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+
+  /* Botanical palette, drawn from the leaf logo (forest → lime) */
+  --paper: #fbfcf6;
+  --cream: #f3f5ea;
+  --moss: #e4ecd5;
+  --sprout: #d3e8b4;
+  --lime: #7ac21a;
+  --leaf: #2f8a3a;
+  --forest: #0b4d35;
+  --canopy: #08382a;
+  --clay: #c2673a;
+  --ink: #15241b;
+  --ink-soft: #4b5c51;
+  --ink-faint: #7d8b80;
+  --line: rgb(21 36 27 / 0.09);
 }
+
+/*
+ * Icon-only app sidebar: "collapsed" (set once hydrated), or "auto" (server render) on a focus
+ * page such as the AI chat — so the chat is laid out correctly before any script runs.
+ * Applies to the sidebar itself and everything inside it.
+ */
+@custom-variant sidebar-collapsed (&:is([data-sidebar="collapsed"], [data-sidebar="collapsed"] *, body:has([data-focus-mode]) [data-sidebar="auto"], body:has([data-focus-mode]) [data-sidebar="auto"] *));
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-paper: var(--paper);
+  --color-cream: var(--cream);
+  --color-moss: var(--moss);
+  --color-sprout: var(--sprout);
+  --color-lime: var(--lime);
+  --color-leaf: var(--leaf);
+  --color-forest: var(--forest);
+  --color-canopy: var(--canopy);
+  --color-clay: var(--clay);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  /* Latin glyphs fall through to Fraunces / Hind; Bengali glyphs to Tiro Bangla / Hind Siliguri */
+  --font-display: var(--font-fraunces), var(--font-tiro-bangla), serif;
+  --font-sans: var(--font-hind-siliguri), ui-sans-serif, sans-serif;
+
+  --shadow-soft: 0 1px 2px rgb(11 77 53 / 0.04), 0 8px 24px -12px rgb(11 77 53 / 0.18);
+  --shadow-lift: 0 2px 4px rgb(11 77 53 / 0.05), 0 22px 44px -20px rgb(11 77 53 / 0.32);
+
+  --animate-sway: sway 7s ease-in-out infinite;
+  --animate-drift: drift 14s ease-in-out infinite;
+  --animate-scan: scan 2.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  --animate-shimmer: shimmer 8s linear infinite;
+  --animate-rise: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes rise {
+    from { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.98); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes sway {
+    0%, 100% { transform: rotate(-4deg); }
+    50% { transform: rotate(4deg); }
+  }
+  @keyframes drift {
+    0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+    50% { transform: translate3d(0, -14px, 0) rotate(6deg); }
+  }
+  @keyframes scan {
+    0% { top: 6%; }
+    50% { top: 88%; }
+    100% { top: 6%; }
+  }
+  @keyframes shimmer {
+    to { background-position: 200% center; }
   }
 }
 
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Fine paper grain for warmth; purely decorative */
+.grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 60;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.text-gradient-leaf {
+  background-image: linear-gradient(100deg, var(--forest) 0%, var(--leaf) 35%, var(--lime) 55%, var(--leaf) 75%, var(--forest) 100%);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+::selection {
+  background: var(--sprout);
+  color: var(--canopy);
+}
+
+/* Layered so utilities such as the composer's outline-none can override it */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--leaf);
+    outline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
