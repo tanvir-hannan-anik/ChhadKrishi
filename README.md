@@ -245,9 +245,14 @@ Set `CHHADKRISHI_AI_FIXTURE=1` in development to use a clearly labelled **test m
 
 Any Node.js host works; on Vercel:
 
-1. Import the repository and set the environment variables (`DATABASE_URL` is required in production — e.g. a Supabase or Neon Postgres).
-2. Set `BETTER_AUTH_URL` to the production origin.
-3. Run `npm run rag:ingest` once (locally, pointing at the production `SUPABASE_DB_URL`) to load the reference library.
+1. Import the repository. In **Settings → Environment Variables** add, for Production (and Preview if used):
+   - `DATABASE_URL` — **required**: PGlite only works locally. The Supabase *Transaction pooler* string works (the same value as `SUPABASE_DB_URL` keeps app data and the reference library in one project). Use the pooler (`…pooler.supabase.com:6543`), not `db.<ref>.supabase.co`, which is IPv6-only.
+   - `BETTER_AUTH_SECRET`, and `BETTER_AUTH_URL` = the production origin (e.g. `https://chhadkrishi.vercel.app`) — sign-in rejects other origins.
+   - AI and optional keys: `OPENROUTER_API_KEY` (or `AI_GATEWAY_API_KEY`), `YOUTUBE_API_KEY`, `SUPABASE_DB_URL`, `CHHADKRISHI_IMAGE_PROVIDER`, `OPENROUTER_IMAGE_API_KEY`.
+2. Redeploy. Tables are created on the first request; on hosted Postgres the app enables row-level security on every table it owns, so Supabase's public REST API cannot read them.
+3. Run `npm run rag:ingest` once (locally, with the production `SUPABASE_DB_URL`) to load the reference library.
+
+The build itself needs no secrets; a missing `DATABASE_URL` only fails requests that touch the database.
 
 ## Credits and licences
 

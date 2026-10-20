@@ -12,11 +12,21 @@ import { Pool } from "pg";
  * identical in both environments and no native modules are required.
  */
 function createDialect() {
-  if (process.env.DATABASE_URL) {
-    return new PostgresDialect({ pool: new Pool({ connectionString: process.env.DATABASE_URL, max: 5 }) });
+  const url = process.env.DATABASE_URL;
+  if (url) {
+    // Hosted Postgres (Supabase, Neon…) requires TLS; Supabase's certificate chain is not in
+    // Node's default store, so verify-full would fail — the connection is still encrypted.
+    const local = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
+    return new PostgresDialect({
+      pool: new Pool({ connectionString: url.replace(/[?&]sslmode=[^&]+/, ""), ssl: local ? false : { rejectUnauthorized: false }, max: 5 }),
+    });
   }
   if (process.env.VERCEL) {
-    throw new Error("DATABASE_URL must be set in deployed environments; PGlite is for local development only.");
+    // Fail on the first query, not at import: `next build` loads every route module to collect
+    // page data, and a missing variable must not break the build itself.
+    return new PGliteDialect({
+      pglite: () => Promise.reject(new Error("DATABASE_URL must be set in deployed environments; PGlite is for local development only.")),
+    });
   }
   // PGlite allows one process per data directory; PGLITE_DATA_DIR lets a test server use its own.
   // Dev-only path, so it is excluded from output file tracing.
@@ -252,6 +262,30 @@ export async function ensureAppSchema() {
     .values(SEED_PRODUCTS)
     .onConflict((oc) => oc.column("id").doNothing())
     .execute();
+
+  if (process.env.DATABASE_URL) await lockDownTables();
+}
+
+/**
+ * Turns on row-level security (with no policies) for every table this app owns. Supabase serves
+ * the public schema through its REST API using a key that is public by design; without RLS,
+ * that API could read tables such as `user`, `session` and `account`. The app itself connects
+ * as the tables' owner, which RLS does not restrict, so its own queries are unaffected.
+ */
+async function lockDownTables() {
+  await sql`
+    do $$
+    declare t record;
+    begin
+      for t in
+        select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+         where n.nspname = current_schema() and c.relkind = 'r' and not c.relrowsecurity
+           and pg_get_userbyid(c.relowner) = current_user
+      loop
+        execute format('alter table %I enable row level security', t.relname);
+      end loop;
+    end $$;
+  `.execute(db);
 }
 
 const SEED_PRODUCTS = [
