@@ -1,10 +1,14 @@
 import { z } from "zod";
 
-/** Structured result of a plant photo analysis. Shared by the API (validation) and UI (types). */
+/**
+ * Structured result of a plant photo analysis. Shared by the API (validation) and UI (types).
+ * List lengths are stated in the descriptions and enforced by limitAnalysis: providers that
+ * validate output against the schema (Groq) reject the whole analysis over one extra item.
+ */
 export const plantAnalysisSchema = z.object({
   isPlant: z.boolean().describe("Whether the photo actually shows a plant"),
   needsBetterPhoto: z.boolean().describe("True when the photo is too unclear to judge reliably"),
-  photoTips: z.array(z.string()).max(3).describe("How to take a better photo, if needed"),
+  photoTips: z.array(z.string()).describe("Up to 3 tips for a better photo, if needed"),
   plant: z.object({
     commonName: z.string().describe("Common name, or empty if unknown"),
     scientificName: z.string().describe("Latin binomial, or empty if unknown"),
@@ -17,10 +21,10 @@ export const plantAnalysisSchema = z.object({
       z.object({
         name: z.string().describe("Disease, pest or deficiency name"),
         likelihood: z.enum(["low", "medium", "high"]),
-        signs: z.array(z.string()).max(4).describe("What in the photo points to this"),
+        signs: z.array(z.string()).describe("Up to 4 signs in the photo that point to this"),
       }),
     )
-    .max(3),
+    .describe("At most 3 likely issues, most likely first"),
   treatment: z
     .array(
       z.object({
@@ -28,12 +32,23 @@ export const plantAnalysisSchema = z.object({
         organic: z.boolean(),
       }),
     )
-    .max(6),
-  prevention: z.array(z.string()).max(4),
+    .describe("At most 6 steps, most urgent first"),
+  prevention: z.array(z.string()).describe("Up to 4 prevention tips"),
   urgency: z.enum(["low", "medium", "high"]).describe("How soon the gardener should act"),
 });
 
 export type PlantAnalysis = z.infer<typeof plantAnalysisSchema>;
+
+/** Applies the list limits the schema only describes. */
+export function limitAnalysis(a: PlantAnalysis): PlantAnalysis {
+  return {
+    ...a,
+    photoTips: a.photoTips.slice(0, 3),
+    issues: a.issues.slice(0, 3).map((issue) => ({ ...issue, signs: issue.signs.slice(0, 4) })),
+    treatment: a.treatment.slice(0, 6),
+    prevention: a.prevention.slice(0, 4),
+  };
+}
 
 /** Client and server agree on these limits. Images are resized in the browser before upload. */
 export const IMAGE_LIMITS = {

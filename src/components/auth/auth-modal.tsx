@@ -316,7 +316,7 @@ function AuthDialog({
                 <p className="mt-5 font-display text-2xl text-ink">{a.welcome(welcomeName)}</p>
                 {status === "success" ? (
                   <p className="mt-2 flex items-center gap-2 text-ink-soft">
-                    <Loader2 className="h-4 w-4 animate-spin" /> {pending.kind !== "none" ? a.resuming : ""}
+                    <Loader2 className="h-4 w-4 animate-spin" /> <span>{pending.kind !== "none" ? a.resuming : ""}</span>
                   </p>
                 ) : (
                   <>
@@ -465,13 +465,17 @@ function AuthDialog({
                     className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-forest py-3.5 font-semibold text-paper shadow-soft transition-colors hover:bg-canopy disabled:cursor-wait disabled:opacity-80"
                   >
                     {status === "submitting" && <Loader2 className="h-5 w-5 animate-spin" />}
-                    {status === "submitting"
-                      ? mode === "signin"
-                        ? a.loadingSignIn
-                        : a.loadingSignUp
-                      : mode === "signin"
-                        ? a.submitSignIn
-                        : a.submitSignUp}
+                    {/* Text in its own element: React then never inserts beside a bare text node,
+                        which extensions that rewrite page text would otherwise break. */}
+                    <span>
+                      {status === "submitting"
+                        ? mode === "signin"
+                          ? a.loadingSignIn
+                          : a.loadingSignUp
+                        : mode === "signin"
+                          ? a.submitSignIn
+                          : a.submitSignUp}
+                    </span>
                   </motion.button>
                 </form>
 

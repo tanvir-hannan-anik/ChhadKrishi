@@ -2,6 +2,7 @@ import "server-only";
 
 import { convertToModelMessages, createUIMessageStream, createUIMessageStreamResponse, streamText, toUIMessageStream, type UIMessage } from "ai";
 import { getModel } from "./config";
+import { describePhoto, describesPhotos, photoNote } from "./photo-description";
 import { classifyAiError } from "./errors";
 import { chatSystemPrompt } from "./prompts";
 import { findChatResources } from "./resources";
@@ -41,10 +42,33 @@ export async function streamChatReply(input: {
   // RAG: passages from the reference books that match the question (none if not configured).
   const passages = await retrieveBookPassages(question, input.abortSignal);
 
+  let history = prepareHistory(input.history);
+  // Some providers' best text model has no vision: use the vision model when a photo is attached,
+  // or (see photo-description) let it describe the photo for the text model.
+  const photo = lastUser?.parts.find((part) => part.type === "file");
+  let kind: "chat" | "vision" = photo ? "vision" : "chat";
+  if (photo && describesPhotos()) {
+    try {
+      const description = await describePhoto({
+        image: Buffer.from(photo.url.slice(photo.url.indexOf(",") + 1), "base64"),
+        mediaType: photo.mediaType,
+        focus: "plant",
+        abortSignal: input.abortSignal,
+      });
+      const last = history.findLastIndex((m) => m.role === "user");
+      history = history.map((m, i) => (i === last ? { ...m, parts: m.parts.map((p) => (p.type === "file" ? { type: "text" as const, text: photoNote(description) } : p)) } : m));
+      kind = "chat";
+    } catch (error) {
+      if (input.abortSignal?.aborted) throw error;
+      // Description failed: the vision model answers directly instead.
+      console.warn("[chat] photo description failed, answering with the vision model:", (error as Error).name);
+    }
+  }
+
   const result = streamText({
-    model: await getModel("chat"),
+    model: await getModel(kind),
     system: chatSystemPrompt(input.lang) + (input.context ?? "") + passagesPrompt(passages),
-    messages: await convertToModelMessages(prepareHistory(input.history)),
+    messages: await convertToModelMessages(history),
     maxOutputTokens: 1800,
     abortSignal: input.abortSignal,
   });

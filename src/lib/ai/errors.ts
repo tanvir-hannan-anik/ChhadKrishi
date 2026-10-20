@@ -53,13 +53,14 @@ export function errorResponse(code: AiErrorCode, status: number) {
 /** Server-side log for AI failures. Raw model output is logged only in development. */
 export function logAiError(scope: string, error: unknown) {
   const e = error as
-    | { name?: string; message?: string; text?: string; cause?: { message?: string }; lastError?: { message?: string; responseBody?: string } }
+    | { name?: string; message?: string; text?: string; responseBody?: string; cause?: { message?: string }; lastError?: { message?: string; responseBody?: string } }
     | null;
   console.error(`[${scope}] failed: ${classifyAiError(error)} (${e?.name ?? "unknown"})`);
   if (process.env.NODE_ENV !== "production") {
     if (e?.cause?.message) console.error(`[${scope}] cause: ${e.cause.message.slice(0, 600)}`);
-    // Retry errors wrap the provider's actual response.
+    // Retry errors wrap the provider's actual response; direct API errors carry it themselves.
     if (e?.lastError) console.error(`[${scope}] last error: ${(e.lastError.responseBody || e.lastError.message || "").slice(0, 600)}`);
+    else if (e?.responseBody) console.error(`[${scope}] response: ${e.responseBody.slice(0, 600)}`);
     if (e?.text) console.error(`[${scope}] model text: ${e.text.slice(0, 600)}`);
   }
 }

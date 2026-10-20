@@ -3,6 +3,7 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { generateImage, generateText, Output } from "ai";
 import { getImageModel, getModel, isFixtureMode } from "@/lib/ai/config";
+import { describePhoto, describesPhotos, photoNote } from "@/lib/ai/photo-description";
 import type { Lang } from "@/lib/i18n/dictionary";
 import { fixturePlan, fixtureSpace } from "./fixtures";
 import { consultationSystemPrompt, firstTurnInstruction, planSystemPrompt, planUserPrompt, renderPrompt, turnContext } from "./prompts";
@@ -136,24 +137,28 @@ export async function startConsultation(input: {
   }
 
   try {
-    const model = await getModel("vision");
-    const { output } = await withDeadline(input.abortSignal, TIMEOUTS.start, (abortSignal) =>
-      generateText({
-        model,
+    const { output } = await withDeadline(input.abortSignal, TIMEOUTS.start, async (abortSignal) => {
+      // Two-step on providers whose vision model writes weak Bangla: describe, then consult as text.
+      const described = describesPhotos() ? await describePhoto({ image: input.image, mediaType: input.mediaType, focus: "space", abortSignal }) : null;
+      return generateText({
+        model: await getModel(described === null ? "vision" : "structured"),
         system: consultationSystemPrompt(input.lang),
         messages: [
           {
             role: "user",
-            content: [
-              { type: "text", text: firstTurnInstruction(input.lang) },
-              { type: "file", mediaType: input.mediaType, data: input.image },
-            ],
+            content:
+              described === null
+                ? [
+                    { type: "text", text: firstTurnInstruction(input.lang) },
+                    { type: "file", mediaType: input.mediaType, data: input.image },
+                  ]
+                : [{ type: "text", text: `${firstTurnInstruction(input.lang)}\n\n${photoNote(described)}` }],
           },
         ],
         output: Output.object({ name: "garden_consultation_start", schema: firstTurnSchema }),
         abortSignal,
-      }),
-    );
+      });
+    });
 
     const { space, ...turn } = output;
     // Photo guesses are only ever offered as options; the gardener confirms every requirement.

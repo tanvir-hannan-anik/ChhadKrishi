@@ -41,6 +41,8 @@ export function GardenManager({ initial }: { initial: Garden }) {
     if (potCount < 1 || potCount > 500) return;
     setPlants((list) => list.map((p) => (p.id === plant.id ? { ...p, potCount } : p)));
     const result = await apiFetch(`/api/garden/plants/${plant.id}`, { method: "PATCH", json: { potCount } });
+    // Deleted meanwhile (e.g. a quick delete right after a pot change): nothing to save or report.
+    if (!result.ok && result.status === 404) return;
     if (!result.ok) {
       setPlants((list) => list.map((p) => (p.id === plant.id ? plant : p)));
       if (result.status !== 401) toast(errorText(result.error), "error");

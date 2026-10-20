@@ -2,8 +2,9 @@ import "server-only";
 
 import { generateText, Output } from "ai";
 import { getModel } from "./config";
+import { describePhoto, describesPhotos, photoNote } from "./photo-description";
 import { analysisSystemPrompt } from "./prompts";
-import { plantAnalysisSchema, type PlantAnalysis } from "./analysis-schema";
+import { limitAnalysis, plantAnalysisSchema, type PlantAnalysis } from "./analysis-schema";
 import type { Lang } from "@/lib/i18n/dictionary";
 
 export async function analyzePlantPhoto(input: {
@@ -21,21 +22,30 @@ export async function analyzePlantPhoto(input: {
       ? "এই ছবির গাছটি পরীক্ষা করে নির্দিষ্ট কাঠামোতে ফলাফল দিন।"
       : "Examine the plant in this photo and return the structured result.";
 
+  const text = input.note ? `${instruction}\n\nGardener's note: ${input.note}` : instruction;
+  // Two-step on providers whose vision model writes weak Bangla: describe, then analyse as text.
+  const described = describesPhotos()
+    ? await describePhoto({ image: input.image, mediaType: input.mediaType, focus: "plant", abortSignal: input.abortSignal })
+    : null;
+
   const { output } = await generateText({
-    model: await getModel("vision"),
+    model: await getModel(described === null ? "vision" : "structured"),
     system: analysisSystemPrompt(input.lang) + (input.context ?? "") + (input.evidence ?? ""),
     messages: [
       {
         role: "user",
-        content: [
-          { type: "text", text: input.note ? `${instruction}\n\nGardener's note: ${input.note}` : instruction },
-          { type: "file", mediaType: input.mediaType, data: input.image },
-        ],
+        content:
+          described === null
+            ? [
+                { type: "text", text },
+                { type: "file", mediaType: input.mediaType, data: input.image },
+              ]
+            : [{ type: "text", text: `${text}\n\n${photoNote(described)}` }],
       },
     ],
     output: Output.object({ name: "plant_analysis", schema: plantAnalysisSchema }),
     abortSignal: input.abortSignal,
   });
 
-  return output;
+  return limitAnalysis(output);
 }

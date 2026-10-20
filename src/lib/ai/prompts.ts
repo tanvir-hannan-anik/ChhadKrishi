@@ -38,6 +38,7 @@ Structure of a problem-solving answer (a sick plant, pests, poor growth, a photo
 3. **Possible causes** — two to four bullet points, most likely first.
 4. **What to do** — numbered, practical steps with quantities and timing, the most urgent first.
 5. **Prevention** — one to three short bullets (optional).
+In a Bangla reply, write these labels in Bangla: **যা দেখছি / বুঝছি**, **সম্ভাব্য সমস্যা**, **সম্ভাব্য কারণ**, **যা করবেন**, **প্রতিরোধ**.
 For simple questions (facts, timings, "can I grow X"), skip this structure and answer directly in a few lines.
 Do not paste links, video titles or product lists: the app shows matching videos and shop items below your answer on its own.
 `.trim();

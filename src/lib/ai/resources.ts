@@ -12,9 +12,11 @@ const PLAN_TIMEOUT_MS = 40_000;
 /** Short chat replies are usually clarifying questions or refusals: nothing to recommend. */
 const MIN_CHAT_ANSWER_LENGTH = 220;
 
+// Limits are stated in the descriptions and enforced below, not in the schema: providers that
+// validate output against the schema (Groq) reject the whole answer over one long field.
 const planSchema = z.object({
-  videoQuery: z.string().max(120).describe("A specific YouTube search query, or an empty string when a video would not genuinely help."),
-  productIds: z.array(z.string()).max(3).describe("Ids from the shop list for items the answer tells the gardener to use; empty if none."),
+  videoQuery: z.string().describe("A specific YouTube search query (under 120 characters), or an empty string when a video would not genuinely help."),
+  productIds: z.array(z.string()).describe("Up to 3 ids from the shop list for items the answer tells the gardener to use; empty if none."),
 });
 
 export const RESOURCE_PLAN_MARKER = "[resource-plan]";
@@ -106,7 +108,7 @@ export async function findChatResources(input: {
     );
 
     const ids = new Set([...output.productIds, ...mentioned.map((p) => p.id)]);
-    const query = output.videoQuery.trim();
+    const query = output.videoQuery.trim().slice(0, 120);
     return {
       status: "ready",
       // Only real catalogue items, with names and prices from the database, never from the model.

@@ -1,18 +1,21 @@
 import "server-only";
 
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createGroq } from "@ai-sdk/groq";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { gateway, type ImageModel, type LanguageModel } from "ai";
+import { defaultSettingsMiddleware, gateway, wrapLanguageModel, type ImageModel, type LanguageModel } from "ai";
 
 /**
  * AI configuration — the single place that knows which provider and models are used.
  * The first configured provider wins:
  *
  *   1. AI_GATEWAY_API_KEY            Vercel AI Gateway (or OIDC when deployed on Vercel)
- *   2. OPENROUTER_API_KEY            OpenRouter, free models by default (with automatic fallback)
- *   3. GOOGLE_GENERATIVE_AI_API_KEY  Google Gemini
+ *   2. GROQ_API_KEY                  Groq: gpt-oss-120b for text, a Qwen vision model for photos
+ *   3. OPENROUTER_API_KEY            OpenRouter, free models by default (with automatic fallback)
+ *   4. GOOGLE_GENERATIVE_AI_API_KEY  Google Gemini
  *
  * Optional overrides:
+ *   CHHADKRISHI_AI_PROVIDER   force "gateway" | "groq" | "openrouter" | "google"
  *   CHHADKRISHI_CHAT_MODEL / CHHADKRISHI_VISION_MODEL   model id for the active provider;
  *     for OpenRouter a comma-separated list is accepted — the first is primary, the rest are
  *     fallbacks OpenRouter tries automatically on rate limits or outages.
@@ -21,7 +24,7 @@ import { gateway, type ImageModel, type LanguageModel } from "ai";
  */
 /** "structured" = JSON-schema output (photo analysis, care suggestions); "vision" also accepts images. */
 export type ModelKind = "chat" | "vision" | "structured";
-export type AiProvider = "gateway" | "openrouter" | "google";
+export type AiProvider = "gateway" | "groq" | "openrouter" | "google";
 
 // Free OpenRouter models that accept images and handle Bangla, best first. Free models are
 // often rate-limited upstream, so OpenRouter falls through this list automatically.
@@ -29,6 +32,9 @@ const OPENROUTER_FREE_MODELS = ["google/gemma-4-31b-it:free", "minimax/minimax-m
 
 const DEFAULTS: Record<AiProvider, Record<ModelKind, string[]>> = {
   gateway: { chat: ["anthropic/claude-sonnet-5.5"], vision: ["anthropic/claude-sonnet-5.5"], structured: ["anthropic/claude-sonnet-5.5"] },
+  // gpt-oss-120b writes the most natural Bangla on Groq but has no vision; the Qwen model sees
+  // photos (its Bangla is weaker, so it is used only when a photo is involved).
+  groq: { chat: ["openai/gpt-oss-120b"], vision: ["qwen/qwen3.8-27b"], structured: ["openai/gpt-oss-120b"] },
   openrouter: { chat: OPENROUTER_FREE_MODELS, vision: OPENROUTER_FREE_MODELS, structured: OPENROUTER_FREE_MODELS },
   google: { chat: ["gemini-flash-latest"], vision: ["gemini-flash-latest"], structured: ["gemini-flash-latest"] },
 };
@@ -49,7 +55,10 @@ export function isFixtureMode(): boolean {
 }
 
 export function activeProvider(): AiProvider | null {
+  const forced = process.env.CHHADKRISHI_AI_PROVIDER?.trim();
+  if (forced === "gateway" || forced === "groq" || forced === "openrouter" || forced === "google") return forced;
   if (process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN) return "gateway";
+  if (process.env.GROQ_API_KEY) return "groq";
   if (process.env.OPENROUTER_API_KEY) return "openrouter";
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) return "google";
   return null;
@@ -73,6 +82,12 @@ export async function getModel(kind: ModelKind): Promise<LanguageModel> {
       return gateway(primary);
     case "google":
       return createGoogleGenerativeAI({ apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY })(primary);
+    case "groq": {
+      // Short reasoning keeps answers fast; Qwen's thinking adds nothing for photo reads.
+      const reasoningEffort = primary.startsWith("openai/gpt-oss") ? "low" : primary.startsWith("qwen/") ? "none" : undefined;
+      const model = createGroq({ apiKey: process.env.GROQ_API_KEY })(primary);
+      return reasoningEffort ? wrapLanguageModel({ model, middleware: defaultSettingsMiddleware({ settings: { providerOptions: { groq: { reasoningEffort } } } }) }) : model;
+    }
     case "openrouter": {
       const openrouter = createOpenRouter({
         apiKey: process.env.OPENROUTER_API_KEY,
