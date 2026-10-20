@@ -80,7 +80,7 @@ flowchart TB
 
     subgraph External["External services"]
         LLM["LLM providers<br/>Vercel AI Gateway · OpenRouter · Google"]
-        Emb["Embeddings<br/>text-embedding-3-small"]
+        Emb["Embeddings<br/>Qwen3-Embedding (multilingual)"]
         YTAPI["YouTube Data API v3"]
         FAO["FAO manuals (ingest only)"]
     end
@@ -178,7 +178,7 @@ All variables are server-side. See [`.env.example`](.env.example) for the annota
 | `CHHADKRISHI_IMAGE_MODEL`, `CHHADKRISHI_IMAGE_PROVIDER` | – | Garden-design image model / force its provider. |
 | `YOUTUBE_API_KEY` | – | YouTube Data API v3 for video cards with thumbnails. |
 | `SUPABASE_DB_URL` | – | Supabase Postgres (pooler) for the RAG library. |
-| `CHHADKRISHI_EMBEDDING_MODEL` | – | Embedding model (1536 dimensions; default `openai/text-embedding-3-small`). |
+| `CHHADKRISHI_EMBEDDING_MODEL` | – | Embedding model (default `qwen/qwen3-embedding-8b`, multilingual, stored at 1024 dimensions). |
 
 > **OpenRouter note:** free models are limited to 50 requests/day on accounts without credit (1,000/day after adding at least $10). Image generation and embeddings are paid models and need a credit balance.
 
@@ -189,16 +189,16 @@ flowchart LR
     S["rag/sources.json<br/>(metadata + licences only)"] --> D["Download<br/>PDF / HTML from fao.org"]
     D --> X["Extract text<br/>unpdf · HTML strip"]
     X --> C["Clean + chunk<br/>~1,100 chars, 200 overlap,<br/>paragraph-aware"]
-    C --> E["Embed<br/>text-embedding-3-small (1536-d)"]
+    C --> E["Embed<br/>Qwen3-Embedding-8B (1024-d, multilingual)"]
     E --> T[("Supabase<br/>rag_document · rag_chunk<br/>HNSW cosine index · RLS on")]
-    Q["Chat question"] --> QE["Embed query"] --> K["Top-4 by cosine,<br/>similarity ≥ 0.3"] --> PR["Numbered passages<br/>in the system prompt"]
+    Q["Chat question"] --> QE["Embed query<br/>(with retrieval instruction)"] --> K["Top-4 by cosine,<br/>similarity ≥ 0.5"] --> PR["Numbered passages<br/>in the system prompt"]
     T --> K
 ```
 
-- **Sources:** two FAO manuals — *A Garden for Everyone* (2005) and *Diversifying Rural Incomes Through Home Gardens* (2004), about 220 passages. The repository stores only their metadata; the ingest script downloads the text from FAO at run time.
+- **Sources:** two FAO manuals — *A Garden for Everyone* (2005) and *Diversifying Rural Incomes Through Home Gardens* (2004), 212 passages. The repository stores only their metadata; the ingest script downloads the text from FAO at run time.
 - **Idempotent:** re-running replaces each document's passages in a single transaction.
 - **Safe by default:** row-level security is enabled on both tables with no policies, so Supabase's public REST API cannot read or write them — only the server's direct database connection can.
-- **Cross-lingual:** Bangla questions retrieve English passages through the multilingual embedding space; the model answers in the gardener's language and adapts field-garden advice to rooftop containers.
+- **Cross-lingual:** Bangla questions retrieve English passages through a multilingual embedding model (Qwen3, chosen after measuring Bangla→English matching — `text-embedding-3-small` could not separate related from unrelated passages); the model answers in the gardener's language and adapts field-garden advice to rooftop containers.
 - **Add a book:** append an entry with `title`, `publisher`, `year`, `url`, `license` and `parts` to `rag/sources.json`, then run `npm run rag:ingest`. Only add texts whose licence allows it.
 
 ## Project structure

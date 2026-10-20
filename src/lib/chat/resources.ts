@@ -30,6 +30,8 @@ export interface BookSource {
   year: number | null;
   section: string;
   url: string;
+  /** The [n] the answer uses for this passage. */
+  n?: number;
 }
 
 export interface ChatResources {

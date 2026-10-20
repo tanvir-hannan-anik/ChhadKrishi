@@ -9,10 +9,12 @@ import type { BookSource } from "@/lib/chat/resources";
  * Supabase. Entirely optional — without SUPABASE_DB_URL, or on any failure, the chat simply
  * answers without book excerpts.
  */
-const EMBEDDING_MODEL = process.env.CHHADKRISHI_EMBEDDING_MODEL || "openai/text-embedding-3-small";
+// Must match scripts/ingest-books.mjs. Multilingual, so Bangla questions match English passages.
+const EMBEDDING_MODEL = process.env.CHHADKRISHI_EMBEDDING_MODEL || "qwen/qwen3-embedding-8b";
+const DIMENSIONS = 1024;
 const TOP_K = 4;
-/** Cosine similarity below this is treated as unrelated (text-embedding-3-small scale). */
-const MIN_SIMILARITY = 0.3;
+/** Below this cosine similarity a passage is treated as unrelated (Qwen3: related ≈ 0.6–0.75, unrelated ≈ 0.3–0.5). */
+const MIN_SIMILARITY = 0.5;
 const TIMEOUT_MS = 8000;
 
 export interface BookPassage extends BookSource {
@@ -45,7 +47,12 @@ async function embedQuery(text: string, signal: AbortSignal): Promise<number[]> 
   const response = await fetch(gateway ? "https://ai-gateway.vercel.sh/v1/embeddings" : "https://openrouter.ai/api/v1/embeddings", {
     method: "POST",
     headers: { Authorization: `Bearer ${gateway || process.env.OPENROUTER_API_KEY}`, "Content-Type": "application/json", "X-Title": "ChhadKrishi" },
-    body: JSON.stringify({ model: EMBEDDING_MODEL, input: text }),
+    // Qwen3 embeddings retrieve better when the query carries a task instruction.
+    body: JSON.stringify({
+      model: EMBEDDING_MODEL,
+      input: `Instruct: Given a gardening question, retrieve passages that answer it\nQuery: ${text}`,
+      dimensions: DIMENSIONS,
+    }),
     signal,
   });
   if (!response.ok) throw new Error(`Embedding failed: HTTP ${response.status}`);

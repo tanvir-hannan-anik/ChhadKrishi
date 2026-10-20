@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getModel } from "./config";
 import type { ChatResources } from "@/lib/chat/resources";
 import type { Lang } from "@/lib/i18n/dictionary";
-import { listProducts } from "@/lib/shop/store";
+import { listProducts, type Product } from "@/lib/shop/store";
 import { searchVideos } from "@/lib/youtube";
 
 const PLAN_TIMEOUT_MS = 40_000;
@@ -18,6 +18,26 @@ const planSchema = z.object({
 });
 
 export const RESOURCE_PLAN_MARKER = "[resource-plan]";
+
+/** How answers name each shop item, in English and Bangla. Unknown ids are simply ignored. */
+const PRODUCT_TERMS: Record<string, RegExp> = {
+  "fert-vermicompost-5kg": /vermi-?compost|worm compost|ভার্মি\s?কম্পোস্ট|কেঁচো সার/i,
+  "fert-neem-cake-1kg": /neem cake|neem khol|নিম খৈল|নিমের খৈল/i,
+  "pot-clay-12in": /clay pot|terracotta|মাটির টব/i,
+  "pot-grow-bag-5": /grow ?bags?|জিও ব্যাগ|গ্রো ব্যাগ/i,
+  "seed-tomato-local": /tomato seeds?|টমেটো(র)? বীজ/i,
+  "seed-green-chilli": /chilli seeds?|chili seeds?|মরিচ(ের)? বীজ/i,
+};
+
+function mentionedProducts(answer: string, products: Product[]): Product[] {
+  return products.filter((p) => PRODUCT_TERMS[p.id]?.test(answer));
+}
+
+/** The gardener's own question makes a sensible YouTube search when no planner is available. */
+function fallbackVideoQuery(question: string): string {
+  const query = question.replace(/\s+/g, " ").replace(/[?？!।]+/g, " ").trim();
+  return query.length >= 8 ? query.slice(0, 90) : "";
+}
 
 function planPrompt(lang: Lang, catalogue: string): string {
   return `${RESOURCE_PLAN_MARKER} You choose optional extras to show below a plant-care answer from ChhadKrishi, a rooftop gardening assistant in Bangladesh.
@@ -59,8 +79,16 @@ export async function findChatResources(input: {
   const none: ChatResources = { status: "ready", videos: [], products: [] };
   if (!input.diagnosis && input.answer.trim().length < MIN_CHAT_ANSWER_LENGTH) return none;
 
+  let products: Product[];
   try {
-    const products = await listProducts();
+    products = await listProducts();
+  } catch {
+    return none;
+  }
+  // Items the answer itself names — reliable even when the planner model is unavailable.
+  const mentioned = mentionedProducts(input.answer, products);
+
+  try {
     const catalogue = products.map((p) => `${p.id}: ${p.nameEn} / ${p.nameBn}`).join("\n");
     const { output } = await withDeadline(
       PLAN_TIMEOUT_MS,
@@ -77,16 +105,20 @@ export async function findChatResources(input: {
       input.abortSignal,
     );
 
-    const ids = new Set(output.productIds);
+    const ids = new Set([...output.productIds, ...mentioned.map((p) => p.id)]);
     const query = output.videoQuery.trim();
     return {
       status: "ready",
       // Only real catalogue items, with names and prices from the database, never from the model.
-      products: products.filter((p) => ids.has(p.id)),
+      products: products.filter((p) => ids.has(p.id)).slice(0, 3),
       videos: query ? await searchVideos(query, input.lang) : [],
     };
   } catch (error) {
-    if (!input.abortSignal?.aborted) console.warn("[resources] skipped:", (error as Error).name, (error as Error).message?.slice(0, 200));
-    return none;
+    if (input.abortSignal?.aborted) return none;
+    // Planner unavailable (e.g. a free model's daily limit): fall back to the question itself as
+    // the video search and to the items the answer names, so a real answer still gets extras.
+    console.warn("[resources] planner unavailable, using fallback:", (error as Error).name);
+    const query = fallbackVideoQuery(input.question);
+    return { status: "ready", products: mentioned.slice(0, 3), videos: query ? await searchVideos(query, input.lang) : [] };
   }
 }

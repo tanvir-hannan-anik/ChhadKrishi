@@ -70,7 +70,9 @@ export async function streamChatReply(input: {
       const resources = await findChatResources({ question, answer, lang: input.lang, abortSignal: input.abortSignal });
       // Only the books the answer actually cited ([1], [2]…) are listed as sources.
       const cited = new Set([...answer.matchAll(/\[(\d)\]/g)].map((m) => Number(m[1]) - 1));
-      const sources = passageSources(passages).filter((_, index) => cited.has(index));
+      const sources = passageSources(passages)
+        .map((source, index) => ({ ...source, n: index + 1 }))
+        .filter((_, index) => cited.has(index));
       writer.write({ type: "data-resources", id: "resources", data: { ...resources, sources } });
       writer.write({ type: "finish", finishReason: await result.finishReason });
     },

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { BookOpen, ExternalLink, Package, Play, Search, ShoppingBasket, Sprout, Wheat } from "lucide-react";
 import { EASE_OUT } from "@/components/motion/reveal";
-import type { ChatResources, ProductResource, VideoResource } from "@/lib/chat/resources";
+import type { BookSource, ChatResources, ProductResource, VideoResource } from "@/lib/chat/resources";
 import { formatNumber } from "@/lib/i18n/dictionary";
 import { useLanguage } from "@/lib/i18n/language-context";
 
@@ -46,15 +46,21 @@ export function ResourceCards({ resources, streaming }: { resources: ChatResourc
             <BookOpen className="h-3.5 w-3.5 text-leaf" /> {r.sources}
           </h3>
           <ol className="space-y-1">
-            {sources.map((source, index) => (
-              <li key={`${source.url}-${index}`}>
+            {groupSources(sources).map(({ source, numbers }) => (
+              <li key={source.url}>
                 <a
                   href={source.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="group flex items-start gap-2 rounded-xl px-2 py-1.5 text-xs text-ink-soft hover:bg-moss/60 hover:text-forest"
                 >
-                  <span className="mt-px inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded bg-moss px-1 text-[10px] font-bold text-forest">{index + 1}</span>
+                  <span className="mt-px flex shrink-0 gap-0.5">
+                    {numbers.map((n) => (
+                      <span key={n} className="inline-flex h-4 min-w-4 items-center justify-center rounded bg-moss px-1 text-[10px] font-bold text-forest">
+                        {n}
+                      </span>
+                    ))}
+                  </span>
                   <span className="min-w-0">
                     <span className="line-clamp-1 font-medium text-ink group-hover:text-forest">{source.title}</span>
                     <span className="line-clamp-1">
@@ -99,6 +105,18 @@ export function ResourceCards({ resources, streaming }: { resources: ChatResourc
       )}
     </motion.section>
   );
+}
+
+/** One line per book section, listing every [n] the answer used for it. */
+function groupSources(sources: BookSource[]): { source: BookSource; numbers: number[] }[] {
+  const groups = new Map<string, { source: BookSource; numbers: number[] }>();
+  sources.forEach((source, index) => {
+    const n = source.n ?? index + 1;
+    const group = groups.get(source.url);
+    if (group) group.numbers.push(n);
+    else groups.set(source.url, { source, numbers: [n] });
+  });
+  return [...groups.values()];
 }
 
 function VideoCard({ video }: { video: VideoResource }) {

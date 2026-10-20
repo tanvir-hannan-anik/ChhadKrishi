@@ -117,7 +117,7 @@ export function activeImageProvider(): ImageProvider | null {
   if (forced === "gateway" || forced === "google" || forced === "openrouter") return forced;
   if (process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN) return "gateway";
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) return "google";
-  if (process.env.OPENROUTER_API_KEY) return "openrouter";
+  if (process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_IMAGE_API_KEY) return "openrouter";
   return null;
 }
 
@@ -136,7 +136,8 @@ export function getImageModel(): ImageModel {
       return createGoogleGenerativeAI({ apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY }).image(modelId);
     case "openrouter":
       return createOpenRouter({
-        apiKey: process.env.OPENROUTER_API_KEY,
+        // An optional separate key (e.g. an account with credit) just for images.
+        apiKey: process.env.OPENROUTER_IMAGE_API_KEY || process.env.OPENROUTER_API_KEY,
         headers: { "X-Title": "ChhadKrishi", "HTTP-Referer": process.env.BETTER_AUTH_URL ?? "http://localhost:3000" },
       }).imageModel(modelId);
   }

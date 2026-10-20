@@ -16,8 +16,10 @@ import pg from "pg";
 import { extractText, getDocumentProxy } from "unpdf";
 
 const DRY_RUN = process.argv.includes("--dry-run");
-const EMBEDDING_MODEL = process.env.CHHADKRISHI_EMBEDDING_MODEL || "openai/text-embedding-3-small";
-const DIMENSIONS = 1536;
+// Multilingual, so Bangla questions find these English passages. 1024 dimensions keeps the
+// vectors under pgvector's 2,000-dimension index limit.
+const EMBEDDING_MODEL = process.env.CHHADKRISHI_EMBEDDING_MODEL || "qwen/qwen3-embedding-8b";
+const DIMENSIONS = 1024;
 const CHUNK_CHARS = 1100;
 const OVERLAP_CHARS = 200;
 const BATCH = 48;
@@ -56,6 +58,7 @@ function clean(text) {
   return text
     .replace(/\r/g, "")
     .replace(/(\w)-\n(\w)/g, "$1$2") // re-join hyphenated line breaks
+    .replace(/\b(?:[A-Za-z] ){2,}[A-Za-z]\b/g, (run) => run.replace(/ /g, "")) // letter-spaced PDF text: "S o a p" → "Soap"
     .replace(/[ \t ]+/g, " ")
     .replace(/ *\n */g, "\n")
     .replace(/\n{3,}/g, "\n\n")
@@ -93,7 +96,7 @@ async function embed(inputs) {
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Title": "ChhadKrishi" },
-    body: JSON.stringify({ model: EMBEDDING_MODEL, input: inputs }),
+    body: JSON.stringify({ model: EMBEDDING_MODEL, input: inputs, dimensions: DIMENSIONS }),
   });
   if (!response.ok) throw new Error(`Embedding request failed: HTTP ${response.status} ${await response.text()}`);
   const { data } = await response.json();
@@ -149,7 +152,17 @@ function connect() {
 
 const { documents } = JSON.parse(await readFile(path.join(import.meta.dirname, "..", "rag", "sources.json"), "utf8"));
 const pool = DRY_RUN ? null : connect();
-if (pool) await pool.query(SCHEMA);
+if (pool) {
+  // A different embedding size cannot share the column: rebuild the passages table.
+  const { rows } = await pool.query(
+    "select format_type(atttypid, atttypmod) as type from pg_attribute where attrelid = to_regclass('rag_chunk') and attname = 'embedding'",
+  );
+  if (rows[0] && rows[0].type !== `vector(${DIMENSIONS})`) {
+    console.log(`Embedding size changed (${rows[0].type} → vector(${DIMENSIONS})): rebuilding rag_chunk.`);
+    await pool.query("drop table rag_chunk");
+  }
+  await pool.query(SCHEMA);
+}
 
 let total = 0;
 for (const doc of documents) {
