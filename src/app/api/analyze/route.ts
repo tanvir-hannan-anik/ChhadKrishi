@@ -8,6 +8,7 @@ import { gardenContextNote } from "@/lib/ai/prompts";
 import { takeAiQuota } from "@/lib/ai/rate-limit";
 import { gardenContext } from "@/lib/garden/store";
 import { analyzeWithVision, isMlConfigured, visionEvidenceNote, type VisionReport } from "@/lib/ml/service";
+import { kbDiagnose, kbMode, toAnalysisKnowledge } from "@/lib/rag/kb";
 
 const STATUS_FOR = { AI_AUTH_FAILED: 502, AI_RATE_LIMITED: 503, AI_UNAVAILABLE: 503, AI_BAD_OUTPUT: 502, AI_NOT_CONFIGURED: 503 } as const;
 
@@ -39,8 +40,16 @@ export async function POST(request: Request) {
   try {
     const [context, vision] = await Promise.all([gardenContext(session.user.id).then(gardenContextNote), measurePhoto(check.bytes, check.mediaType, request.signal)]);
     const evidence = vision ? visionEvidenceNote(vision) : "";
-    const analysis = await analyzePlantPhoto({ image: check.bytes, mediaType: check.mediaType, note, lang, context, evidence, abortSignal: request.signal });
-    return Response.json({ analysis, vision });
+    // The visual read and the encyclopedia diagnosis run side by side.
+    const [analysis, kb] = await Promise.all([
+      analyzePlantPhoto({ image: check.bytes, mediaType: check.mediaType, note, lang, context, evidence, abortSignal: request.signal }),
+      kbDiagnose({ image: check.bytes, mediaType: check.mediaType, note, lang, measurements: evidence, context }, request.signal),
+    ]);
+    const knowledge = kb ? toAnalysisKnowledge(kb) : null;
+    // Strict mode: treatments and prevention are shown only from the encyclopedia (with page
+    // citations), never from the vision model's own unverified advice.
+    const verifiedOnly = knowledge && kbMode() === "strict" ? { ...analysis, treatment: [], prevention: [] } : analysis;
+    return Response.json({ analysis: verifiedOnly, vision, knowledge });
   } catch (error) {
     if (request.signal.aborted) return new Response(null, { status: 499 });
     const code = classifyAiError(error);

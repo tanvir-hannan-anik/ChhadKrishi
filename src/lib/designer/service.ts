@@ -5,6 +5,8 @@ import { generateImage, generateText, Output } from "ai";
 import { getImageModel, getModel, isFixtureMode } from "@/lib/ai/config";
 import { describePhoto, describesPhotos, photoNote } from "@/lib/ai/photo-description";
 import type { Lang } from "@/lib/i18n/dictionary";
+import { isKbConfigured, kbMode } from "@/lib/rag/kb";
+import { applyPlanEvidence, gardenEvidence, planEvidencePrompt, unsupportedPlants } from "./evidence";
 import { fixturePlan, fixtureSpace } from "./fixtures";
 import { consultationSystemPrompt, firstTurnInstruction, planSystemPrompt, planUserPrompt, renderPrompt, turnContext } from "./prompts";
 import { fallbackQuestion } from "./questions";
@@ -37,7 +39,7 @@ export interface TurnResult {
 }
 
 /** Upper bounds per call, so a stalled provider surfaces as a recoverable error, not a hang. */
-const TIMEOUTS = { start: 90_000, turn: 45_000, plan: 120_000, render: 180_000 } as const;
+const TIMEOUTS = { start: 90_000, turn: 45_000, evidence: 90_000, plan: 120_000, render: 180_000 } as const;
 
 /**
  * Runs `task` with a signal that aborts on the request's own signal or after `ms`. Built from a
@@ -221,17 +223,43 @@ export async function createDesignPlan(input: {
     await new Promise((resolve) => setTimeout(resolve, 2000));
     return fixturePlan(input.lang, input.requirements);
   }
+  const requirements = normalizeRequirements(input.requirements);
+  const kbOn = isKbConfigured();
+  const strict = kbOn && kbMode() === "strict";
+  // Evidence-based plant selection and design constraints from the Agriculture Encyclopedia.
+  // A slow knowledge base never blocks the design: it proceeds as "no evidence" (strict mode then
+  // limits plants to the gardener's own choices).
+  const knowledge = kbOn
+    ? await withDeadline(input.abortSignal, TIMEOUTS.evidence, (signal) => gardenEvidence(input.space, requirements, input.lang, signal)).catch((error) => {
+        if (input.abortSignal?.aborted) throw error;
+        console.error(`[designer] evidence lookup skipped (${(error as { name?: string })?.name ?? "unknown"})`);
+        return null;
+      })
+    : null;
   const model = await getModel("structured");
-  const { output } = await withDeadline(input.abortSignal, TIMEOUTS.plan, (abortSignal) =>
-    generateText({
-      model,
-      system: planSystemPrompt(input.lang),
-      prompt: planUserPrompt(input.space, normalizeRequirements(input.requirements)),
-      output: Output.object({ name: "garden_design_plan", schema: designPlanSchema }),
-      abortSignal,
-    }),
-  );
-  return { ...output, imagePrompt: output.imagePrompt.trim().slice(0, DESIGNER_LIMITS.maxPromptLength) };
+  const system = planSystemPrompt(input.lang) + (kbOn ? planEvidencePrompt(knowledge, requirements.preferredPlants, strict) : "");
+
+  const draft = async (feedback: string) => {
+    const { output } = await withDeadline(input.abortSignal, TIMEOUTS.plan, (abortSignal) =>
+      generateText({
+        model,
+        system,
+        prompt: planUserPrompt(input.space, requirements) + feedback,
+        output: Output.object({ name: "garden_design_plan", schema: designPlanSchema }),
+        abortSignal,
+      }),
+    );
+    return { ...output, imagePrompt: output.imagePrompt.trim().slice(0, DESIGNER_LIMITS.maxPromptLength) } as DesignPlan;
+  };
+
+  let plan = await draft("");
+  if (!kbOn) return plan;
+  // One correction round when the plan uses plants neither the evidence nor the gardener supports.
+  const unsupported = strict ? unsupportedPlants(plan, knowledge, requirements.preferredPlants) : [];
+  if (unsupported.length) {
+    plan = await draft(`\n\nYour previous plan used plants that the evidence does not support and the gardener did not ask for: ${unsupported.join(", ")}. Replace them with plants from the evidence list or the gardener's preferences.`);
+  }
+  return applyPlanEvidence(plan, knowledge, requirements.preferredPlants, strict);
 }
 
 /**

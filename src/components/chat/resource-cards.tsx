@@ -49,14 +49,9 @@ export function ResourceCards({ resources, streaming }: { resources: ChatResourc
             <BookOpen className="h-3.5 w-3.5 text-leaf" /> {r.sources}
           </h3>
           <ol className="space-y-1">
-            {groupSources(sources).map(({ source, numbers }) => (
-              <li key={source.url}>
-                <a
-                  href={source.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-start gap-2 rounded-xl px-2 py-1.5 text-xs text-ink-soft hover:bg-moss/60 hover:text-forest"
-                >
+            {groupSources(sources).map(({ source, numbers }) => {
+              const body = (
+                <>
                   <span className="mt-px flex shrink-0 gap-0.5">
                     {numbers.map((n) => (
                       <span key={n} className="inline-flex h-4 min-w-4 items-center justify-center rounded bg-moss px-1 text-[10px] font-bold text-forest">
@@ -70,11 +65,25 @@ export function ResourceCards({ resources, streaming }: { resources: ChatResourc
                       {source.section} · {source.publisher}
                       {source.year ? `, ${source.year}` : ""}
                     </span>
+                    {source.page && <span className="block font-medium text-leaf">{source.page}</span>}
+                    {source.quote && <span className="mt-0.5 line-clamp-2 italic text-ink-faint">“{source.quote}”</span>}
                   </span>
-                  <ExternalLink className="mt-0.5 ml-auto h-3 w-3 shrink-0" aria-hidden />
-                </a>
-              </li>
-            ))}
+                </>
+              );
+              const row = "group flex items-start gap-2 rounded-xl px-2 py-1.5 text-xs text-ink-soft";
+              return (
+                <li key={`${source.url}|${source.page ?? ""}|${source.section}`}>
+                  {source.url ? (
+                    <a href={source.url} target="_blank" rel="noopener noreferrer" className={`${row} hover:bg-moss/60 hover:text-forest`}>
+                      {body}
+                      <ExternalLink className="mt-0.5 ml-auto h-3 w-3 shrink-0" aria-hidden />
+                    </a>
+                  ) : (
+                    <div className={row}>{body}</div>
+                  )}
+                </li>
+              );
+            })}
           </ol>
         </div>
       )}
@@ -110,14 +119,16 @@ export function ResourceCards({ resources, streaming }: { resources: ChatResourc
   );
 }
 
-/** One line per book section, listing every [n] the answer used for it. */
+/** One line per book section (and page), listing every [n] the answer used for it. */
 function groupSources(sources: BookSource[]): { source: BookSource; numbers: number[] }[] {
   const groups = new Map<string, { source: BookSource; numbers: number[] }>();
   sources.forEach((source, index) => {
     const n = source.n ?? index + 1;
-    const group = groups.get(source.url);
+    // Encyclopedia citations share a DOI per article, so the page keeps them apart.
+    const key = `${source.url}|${source.page ?? ""}|${source.section}`;
+    const group = groups.get(key);
     if (group) group.numbers.push(n);
-    else groups.set(source.url, { source, numbers: [n] });
+    else groups.set(key, { source, numbers: [n] });
   });
   return [...groups.values()];
 }

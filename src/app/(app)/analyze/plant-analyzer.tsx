@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import {
   AlertCircle,
   AlertTriangle,
+  BookOpen,
   Camera,
   CheckCircle2,
   HelpCircle,
@@ -20,9 +21,10 @@ import {
   X,
 } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
+import { Markdown } from "@/components/chat/markdown";
 import { ResourceCards } from "@/components/chat/resource-cards";
 import { EASE_OUT } from "@/components/motion/reveal";
-import type { PlantAnalysis } from "@/lib/ai/analysis-schema";
+import type { AnalysisKnowledge, PlantAnalysis } from "@/lib/ai/analysis-schema";
 import { IMAGE_LIMITS } from "@/lib/ai/analysis-schema";
 import { aiErrorCodeOf } from "@/lib/ai/client-errors";
 import type { AiErrorCode } from "@/lib/ai/errors";
@@ -37,7 +39,7 @@ type Phase =
   | { name: "empty" }
   | { name: "ready" }
   | { name: "analyzing" }
-  | { name: "done"; result: PlantAnalysis; vision: VisionReport | null }
+  | { name: "done"; result: PlantAnalysis; vision: VisionReport | null; knowledge: AnalysisKnowledge | null }
   | { name: "error"; code: AiErrorCode };
 
 export function PlantAnalyzer({ aiConfigured }: { aiConfigured: boolean }) {
@@ -90,10 +92,10 @@ export function PlantAnalyzer({ aiConfigured }: { aiConfigured: boolean }) {
     body.set("lang", lang);
     try {
       const response = await fetch("/api/analyze", { method: "POST", body, signal: controller.signal });
-      const data = (await response.json().catch(() => null)) as { analysis?: PlantAnalysis; vision?: VisionReport | null; error?: string } | null;
+      const data = (await response.json().catch(() => null)) as { analysis?: PlantAnalysis; vision?: VisionReport | null; knowledge?: AnalysisKnowledge | null; error?: string } | null;
       if (controller.signal.aborted) return;
       if (response.ok && data?.analysis) {
-        setPhase({ name: "done", result: data.analysis, vision: data.vision ?? null });
+        setPhase({ name: "done", result: data.analysis, vision: data.vision ?? null, knowledge: data.knowledge ?? null });
         return;
       }
       const code = aiErrorCodeOf({ statusCode: response.status, responseBody: JSON.stringify(data ?? {}) });
@@ -336,6 +338,7 @@ export function PlantAnalyzer({ aiConfigured }: { aiConfigured: boolean }) {
                   key="result"
                   result={phase.result}
                   vision={phase.vision}
+                  knowledge={phase.knowledge}
                   photoUrl={photo?.url ?? null}
                   onAsk={() => askInChat(phase.result)}
                   onReset={reset}
@@ -423,12 +426,14 @@ const HEALTH_TONE = { healthy: "bg-sprout/70 text-forest", issues: "bg-clay/15 t
 function AnalysisResult({
   result,
   vision,
+  knowledge,
   photoUrl,
   onAsk,
   onReset,
 }: {
   result: PlantAnalysis;
   vision: VisionReport | null;
+  knowledge: AnalysisKnowledge | null;
   photoUrl: string | null;
   onAsk: () => void;
   onReset: () => void;
@@ -516,6 +521,12 @@ function AnalysisResult({
             </ul>
           )}
         </motion.section>
+      )}
+
+      {knowledge && result.isPlant && (
+        <motion.div variants={item}>
+          <KnowledgeCard knowledge={knowledge} />
+        </motion.div>
       )}
 
       {result.treatment.length > 0 && (
@@ -611,6 +622,105 @@ const BANDS = ["green", "yellow", "brown", "pale"] as const;
 const BAND_COLOUR = { green: "bg-leaf", yellow: "bg-[#e3b521]", brown: "bg-[#8a5a2b]", pale: "bg-[#d9d4c7]" } as const;
 
 /** OpenCV + YOLO measurements: detected leaves drawn on the photo, colour shares and photo quality. */
+const KNOWLEDGE_TEXT = {
+  bn: {
+    title: "এনসাইক্লোপিডিয়া থেকে যাচাই করা তথ্য",
+    candidates: "বইয়ে বর্ণিত সম্ভাব্য সমস্যা",
+    sources: "সূত্র ও মূল পৃষ্ঠা",
+    disagree: "সূত্রগুলোর মধ্যে মতভেদ",
+    limits: "সীমাবদ্ধতা",
+    ask: "নিশ্চিত হতে জানান",
+    notCovered: "বইয়ে মিলছে না — তাই কোনো চিকিৎসা বা মাত্রা দেখানো হচ্ছে না।",
+  },
+  en: {
+    title: "Verified from the Encyclopedia",
+    candidates: "Possible problems described in the book",
+    sources: "Sources and original pages",
+    disagree: "Where the sources disagree",
+    limits: "Limits of the evidence",
+    ask: "To be more certain, tell me",
+    notCovered: "Not covered by the book — so no treatment or dose is shown.",
+  },
+} as const;
+
+/** Encyclopedia evidence for the photo: cited candidates and guidance, or an honest "not covered". */
+function KnowledgeCard({ knowledge }: { knowledge: AnalysisKnowledge }) {
+  const { lang } = useLanguage();
+  const k = KNOWLEDGE_TEXT[lang];
+  const grounded = knowledge.status === "answered" || knowledge.status === "partial";
+  return (
+    <section className="rounded-3xl bg-white p-6 shadow-soft ring-1 ring-line">
+      <h3 className="flex items-center gap-2 font-semibold text-ink">
+        <BookOpen className="h-5 w-5 text-leaf" /> {k.title}
+      </h3>
+      {!grounded && <p className="mt-2 text-sm font-medium text-clay">{k.notCovered}</p>}
+      {knowledge.answer && (
+        <div className="mt-2 text-sm text-ink-soft">
+          <Markdown text={knowledge.answer} />
+        </div>
+      )}
+      {knowledge.candidates.length > 0 && (
+        <>
+          <h4 className="mt-4 text-sm font-semibold text-ink">{k.candidates}</h4>
+          <ul className="mt-2 space-y-2">
+            {knowledge.candidates.map((c) => (
+              <li key={c.name} className="rounded-2xl bg-cream p-3 text-sm">
+                <span className="font-medium text-ink">{c.name}</span>
+                {c.likelihood && <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${LEVEL_TONE[c.likelihood]}`}>{c.likelihood}</span>}
+                <span className="ml-1 text-xs font-semibold text-leaf">{c.citations.map((n) => `[${n}]`).join("")}</span>
+                {c.detail && <p className="mt-1 text-ink-soft">{c.detail}</p>}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {knowledge.conflicts.length > 0 && (
+        <>
+          <h4 className="mt-4 text-sm font-semibold text-ink">{k.disagree}</h4>
+          <ul className="mt-1 list-disc pl-5 text-sm text-ink-soft">
+            {knowledge.conflicts.map((c) => (
+              <li key={c.description}>
+                {c.description} <span className="text-xs font-semibold text-leaf">{c.citations.map((n) => `[${n}]`).join("")}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {knowledge.uncertainty && (
+        <p className="mt-3 text-xs text-ink-faint">
+          <span className="font-semibold">{k.limits}:</span> {knowledge.uncertainty}
+        </p>
+      )}
+      {knowledge.clarifyingQuestions.length > 0 && (
+        <>
+          <h4 className="mt-4 text-sm font-semibold text-ink">{k.ask}</h4>
+          <ul className="mt-1 list-disc pl-5 text-sm text-ink-soft">
+            {knowledge.clarifyingQuestions.map((q) => (
+              <li key={q}>{q}</li>
+            ))}
+          </ul>
+        </>
+      )}
+      {knowledge.citations.length > 0 && (
+        <>
+          <h4 className="mt-4 text-xs font-semibold text-ink-soft">{k.sources}</h4>
+          <ol className="mt-1 space-y-1.5 text-xs text-ink-soft">
+            {knowledge.citations.map((c) => (
+              <li key={c.n} className="flex gap-2">
+                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded bg-moss px-1 text-[10px] font-bold text-forest">{c.n}</span>
+                <span className="min-w-0">
+                  <span className="font-medium text-ink">{c.article}</span> · {c.section} · <span className="font-medium text-leaf">{c.pageRef}</span>
+                  {c.quote && <span className="mt-0.5 block italic text-ink-faint">“{c.quote}”</span>}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+    </section>
+  );
+}
+
 function VisionCard({ vision, photoUrl }: { vision: VisionReport; photoUrl: string | null }) {
   const { lang } = useLanguage();
   const v = VISION_TEXT[lang];

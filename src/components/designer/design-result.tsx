@@ -21,7 +21,8 @@ import {
 } from "lucide-react";
 import { Reveal, StaggerGroup, staggerItem } from "@/components/motion/reveal";
 import type { AiErrorCode } from "@/lib/ai/errors";
-import type { DesignPlan, Requirements } from "@/lib/designer/schema";
+import type { DesignPlan, PlanEvidence, Requirements } from "@/lib/designer/schema";
+import type { Lang } from "@/lib/i18n/dictionary";
 import { formatNumber } from "@/lib/i18n/dictionary";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { BeforeAfter } from "./before-after";
@@ -162,11 +163,14 @@ export function DesignResult({ plan, requirements, photoUrl, render, onRetryRend
                 <span className="rounded-full bg-cream px-2.5 py-1 text-ink-soft ring-1 ring-line">{plant.potSize}</span>
                 <span className="rounded-full bg-cream px-2.5 py-1 text-ink-soft ring-1 ring-line">{t.designer.values.care[plant.care]}</span>
               </div>
+              <PlantBasis evidence={plan.evidence} index={i} lang={lang} />
               <p className="mt-3 text-sm font-semibold text-forest">{formatTaka(plant.estCostBdt, lang)}</p>
             </motion.li>
           ))}
         </StaggerGroup>
       </section>
+
+      {plan.evidence && <EvidencePanel evidence={plan.evidence} lang={lang} />}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Reveal>
@@ -300,5 +304,78 @@ function BudgetSummary({ plan, requirements }: { plan: DesignPlan; requirements:
       </div>
       <span className={`rounded-full px-3 py-1 text-xs font-semibold ${fits ? "bg-sprout/70 text-forest" : "bg-clay/15 text-clay"}`}>{fits ? r.fitsBudget : r.overBudget}</span>
     </div>
+  );
+}
+
+const EVIDENCE_TEXT = {
+  bn: {
+    title: "গাছ বাছাইয়ের প্রমাণ (Encyclopedia of Agriculture and Food Systems)",
+    evidence: "বইয়ের প্রমাণে সমর্থিত",
+    choice: "আপনার পছন্দ — বইয়ে যাচাই হয়নি",
+    none: "এই জায়গা ও অবস্থার জন্য বইয়ে গাছ বাছাইয়ের প্রমাণ পাওয়া যায়নি; তাই শুধু আপনার পছন্দের গাছ রাখা হয়েছে।",
+    removed: "প্রমাণ না থাকায় বাদ দেওয়া হয়েছে",
+    constraints: "প্রমাণভিত্তিক নকশার শর্ত",
+    limits: "সীমাবদ্ধতা",
+  },
+  en: {
+    title: "Evidence behind the plant choices (Encyclopedia of Agriculture and Food Systems)",
+    evidence: "Supported by the book",
+    choice: "Your choice — not verified in the book",
+    none: "The book has no plant-selection evidence for this space and conditions, so only your chosen plants are used.",
+    removed: "Removed for lack of evidence",
+    constraints: "Evidence-based design constraints",
+    limits: "Limits of the evidence",
+  },
+} as const;
+
+function PlantBasis({ evidence, index, lang }: { evidence?: PlanEvidence; index: number; lang: Lang }) {
+  const entry = evidence?.plants[index];
+  if (!entry) return null;
+  const e = EVIDENCE_TEXT[lang];
+  return entry.basis === "evidence" ? (
+    <p className="mt-2 text-xs font-medium text-leaf">
+      📖 {e.evidence} {entry.citations.map((n) => `[${n}]`).join("")}
+    </p>
+  ) : (
+    <p className="mt-2 text-xs text-ink-faint">{e.choice}</p>
+  );
+}
+
+function EvidencePanel({ evidence, lang }: { evidence: PlanEvidence; lang: Lang }) {
+  const e = EVIDENCE_TEXT[lang];
+  return (
+    <section className="rounded-3xl bg-white p-6 shadow-soft ring-1 ring-line">
+      <SectionTitle icon={<BookOpenText className="h-5 w-5" />} title={e.title} />
+      {evidence.status === "no_evidence" && <p className="mt-3 text-sm text-clay">{e.none}</p>}
+      {evidence.constraints && (
+        <>
+          <h4 className="mt-4 text-sm font-semibold text-ink">{e.constraints}</h4>
+          <p className="mt-1 whitespace-pre-line text-sm text-ink-soft">{evidence.constraints}</p>
+        </>
+      )}
+      {evidence.removedPlants.length > 0 && (
+        <p className="mt-3 text-xs text-ink-faint">
+          {e.removed}: {evidence.removedPlants.join(", ")}
+        </p>
+      )}
+      {evidence.uncertainty && (
+        <p className="mt-3 text-xs text-ink-faint">
+          <span className="font-semibold">{e.limits}:</span> {evidence.uncertainty}
+        </p>
+      )}
+      {evidence.citations.length > 0 && (
+        <ol className="mt-4 space-y-1.5 text-xs text-ink-soft">
+          {evidence.citations.map((c) => (
+            <li key={c.n} className="flex gap-2">
+              <span className="inline-flex h-4 min-w-4 items-center justify-center rounded bg-moss px-1 text-[10px] font-bold text-forest">{c.n}</span>
+              <span className="min-w-0">
+                <span className="font-medium text-ink">{c.article}</span> · {c.section} · <span className="font-medium text-leaf">{c.pageRef}</span>
+                {c.quote && <span className="mt-0.5 block italic text-ink-faint">“{c.quote}”</span>}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   );
 }

@@ -1,0 +1,8 @@
+data/
+eval/reports/
+tests/
+__pycache__/
+*.pyc
+.env
+.pytest_cache/
+*.log

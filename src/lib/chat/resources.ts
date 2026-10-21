@@ -30,7 +30,12 @@ export interface BookSource {
   publisher: string;
   year: number | null;
   section: string;
+  /** Link to the source; empty when there is none (e.g. a book without a DOI). */
   url: string;
+  /** Original page reference, e.g. "Vol. 1, p. 37 (PDF p. 66)". */
+  page?: string;
+  /** The verified sentence from that page the answer relies on. */
+  quote?: string;
   /** The [n] the answer uses for this passage. */
   n?: number;
 }

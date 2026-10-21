@@ -50,6 +50,21 @@ export function limitAnalysis(a: PlantAnalysis): PlantAnalysis {
   };
 }
 
+/**
+ * Evidence from the Agriculture Encyclopedia for a photo (rag-service /v1/diagnose), shared by the
+ * analyze API and UI. `status` "abstained" means the book has no matching evidence: the UI says so
+ * rather than showing unverified treatments.
+ */
+export interface AnalysisKnowledge {
+  status: "answered" | "partial" | "abstained" | "needs_clarification";
+  answer: string;
+  candidates: { name: string; detail: string; likelihood: "low" | "medium" | "high" | ""; citations: number[] }[];
+  citations: { n: number; article: string; section: string; pageRef: string; quote: string; url: string }[];
+  conflicts: { description: string; citations: number[] }[];
+  clarifyingQuestions: string[];
+  uncertainty: string;
+}
+
 /** Client and server agree on these limits. Images are resized in the browser before upload. */
 export const IMAGE_LIMITS = {
   acceptedTypes: ["image/jpeg", "image/png", "image/webp"] as const,

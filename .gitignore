@@ -46,3 +46,16 @@ next-env.d.ts
 /.next-test/
 
 __pycache__/
+
+# Agriculture Encyclopedia PDF (© Elsevier; not redistributable) and the KB service's local data
+/Book/
+/rag-service/data/
+/rag-service/eval/reports/
+/rag-service/*.log
+.pytest_cache/
+
+
+# graphify: keep the graph and report, not the local cache or interpreter/path files
+/graphify-out/cache/
+/graphify-out/.graphify_*
+/graphify-out/manifest.json
