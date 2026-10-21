@@ -110,6 +110,14 @@ python -m scripts.ingest ../Book/Agriculture.pdf --pages 60-80  # quick trial on
 Full-book extraction takes about an hour on a laptop CPU, mostly table detection. It is cached, so
 embedding retries do not repeat it.
 
+### Deploy on Vercel
+
+Create a separate Vercel project from this repository with **Root Directory = `rag-service`**
+(like `ml-service`). `index.py` exposes the FastAPI `app`. Set `RAG_SERVICE_TOKEN`,
+`SUPABASE_DB_URL`, `GROQ_API_KEY`, `OPENROUTER_API_KEY` and `RAG_SKIP_ENV_FILES=1` there, then put
+the deployment URL and the same token into the main project as `RAG_SERVICE_URL` /
+`RAG_SERVICE_TOKEN`. Ingestion is run locally (it writes straight to Supabase), not on Vercel.
+
 ### Run
 
 ```bash
