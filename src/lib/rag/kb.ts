@@ -12,9 +12,10 @@ import type { Lang } from "@/lib/i18n/dictionary";
  *
  *   RAG_SERVICE_URL     e.g. https://chhadkrishi-kb.onrender.com
  *   RAG_SERVICE_TOKEN   the same long random string the service is started with
- *   CHHADKRISHI_KB_MODE strict (default): when the encyclopedia has no evidence, features say so
- *                       instead of giving unverified advice. assist: they fall back to the
- *                       general assistant, clearly labelled as not verified.
+ *   CHHADKRISHI_KB_MODE strict (default): when the encyclopedia has no evidence, the analyzer,
+ *                       care and designer features say so instead of giving unverified advice.
+ *                       assist: they fall back to the general assistant. The chat always falls
+ *                       back to the assistant's own knowledge, whatever the mode.
  *
  * Unset = every feature behaves exactly as before the knowledge base existed.
  */

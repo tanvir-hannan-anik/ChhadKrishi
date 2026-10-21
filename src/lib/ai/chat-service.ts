@@ -6,16 +6,29 @@ import { describePhoto, describesPhotos, photoNote } from "./photo-description";
 import { classifyAiError } from "./errors";
 import { chatSystemPrompt } from "./prompts";
 import { findChatResources } from "./resources";
-import { abstentionText, isGrounded, isKbConfigured, kbAnswer, kbDiagnose, kbMode, kbSources, type KbResult } from "@/lib/rag/kb";
+import { abstentionText, isGrounded, isKbConfigured, kbAnswer, kbDiagnose, kbSources, type KbResult } from "@/lib/rag/kb";
 import { passageSources, passagesPrompt, retrieveBookPassages } from "@/lib/rag/retrieve";
 import type { ChatUIMessage } from "@/lib/chat/resources";
 import type { Lang } from "@/lib/i18n/dictionary";
 
 const HISTORY_LIMIT = 30;
 
-const UNVERIFIED_NOTE = `
+// The encyclopedia had nothing on the question: the assistant answers from its own knowledge, without disclaimers.
+const GENERAL_KNOWLEDGE_NOTE = `
 
-The Encyclopedia of Agriculture and Food Systems (the verified reference library) has no evidence for this question. Start your reply with one short sentence saying this is general guidance that is not verified against the reference book, in the reply's language. Do not give specific doses, rates or chemical products; suggest confirming them with a local agriculture office (e.g. DAE) or the product label.`;
+Answer this question fully from your own agricultural knowledge, as you normally would. Never say that you don't know, that information is unavailable, or that it is not in a book or reference library — just give the best practical answer.`;
+
+/** For a partial encyclopedia answer: the assistant continues the reply with what the book did not cover. */
+function supplementNote(bookAnswer: string, gaps: string): string {
+  return `
+
+The first part of this reply, already shown to the gardener, came from the reference book:
+"""
+${bookAnswer}
+"""
+What it did not cover: ${gaps || "parts of the question"}.
+Continue the reply: from your own agricultural knowledge, add only what is still needed to answer the question fully. Do not repeat what is already said, do not greet or add a title, do not use [n] citation numbers, and never mention the book, references, or that anything was missing.`;
+}
 
 /**
  * Only the newest user photo is sent to the model; earlier photos are replaced by a short
@@ -82,6 +95,8 @@ function verifiedReply(input: {
   question: string;
   lang: Lang;
   sources: ReturnType<typeof kbSources>;
+  /** System prompt for a general-knowledge continuation after the book text (partial answers). */
+  supplementSystem?: string;
   abortSignal?: AbortSignal;
   onComplete: (assistantMessage: UIMessage) => Promise<void>;
 }): Response {
@@ -91,12 +106,33 @@ function verifiedReply(input: {
     onError: (error) => classifyAiError(error),
     execute: async ({ writer }) => {
       const id = crypto.randomUUID();
+      let answer = input.text;
       writer.write({ type: "start" });
       writer.write({ type: "text-start", id });
-      writer.write({ type: "text-delta", id, delta: input.text });
+      writer.write({ type: "text-delta", id, delta: input.supplementSystem ? `${input.text}\n\n` : input.text });
       writer.write({ type: "text-end", id });
+      if (input.supplementSystem) {
+        // Photos are already described in the book answer, so the text model continues from the words alone.
+        const history = input.history
+          .slice(-HISTORY_LIMIT)
+          .map((m) => ({ ...m, parts: m.parts.map((p) => (p.type === "file" ? { type: "text" as const, text: "[plant photo]" } : p)) }));
+        const extra = streamText({
+          model: await getModel("chat"),
+          system: input.supplementSystem,
+          messages: await convertToModelMessages(history),
+          maxOutputTokens: 1200,
+          abortSignal: input.abortSignal,
+        });
+        writer.merge(toUIMessageStream({ stream: extra.stream, sendStart: false, sendFinish: false, onError: (error) => classifyAiError(error) }));
+        try {
+          answer += `\n\n${await extra.text}`;
+        } catch {
+          return; // The merged stream has already reported the error.
+        }
+        if (input.abortSignal?.aborted) return;
+      }
       writer.write({ type: "data-resources", id: "resources", data: { status: "loading", videos: [], products: [] } });
-      const resources = await findChatResources({ question: input.question, answer: input.text, lang: input.lang, abortSignal: input.abortSignal });
+      const resources = await findChatResources({ question: input.question, answer, lang: input.lang, abortSignal: input.abortSignal });
       writer.write({ type: "data-resources", id: "resources", data: { ...resources, sources: input.sources } });
       writer.write({ type: "finish", finishReason: "stop" });
     },
@@ -107,14 +143,14 @@ function verifiedReply(input: {
   return createUIMessageStreamResponse({ stream });
 }
 
-function kbReplyText(kb: KbResult, lang: Lang): string {
+function kbReplyText(kb: KbResult, lang: Lang, { showLimits = true } = {}): string {
   if (!isGrounded(kb)) return abstentionText(kb, lang);
   const parts = [kb.answer.trim()];
   for (const item of kb.items) parts.push(`- **${item.name}**${item.detail ? ` — ${item.detail}` : ""} ${item.citations.map((n) => `[${n}]`).join("")}`);
   if (kb.conflicts.length) {
     parts.push(lang === "bn" ? "\n**সূত্রগুলোর মধ্যে মতভেদ:**" : "\n**Where the sources disagree:**", ...kb.conflicts.map((c) => `- ${c.description} ${c.citations.map((n) => `[${n}]`).join("")}`));
   }
-  if (kb.uncertainty.trim()) parts.push(`\n_${lang === "bn" ? "সীমাবদ্ধতা" : "Limits of the evidence"}: ${kb.uncertainty.trim()}_`);
+  if (showLimits && kb.uncertainty.trim()) parts.push(`\n_${lang === "bn" ? "সীমাবদ্ধতা" : "Limits of the evidence"}: ${kb.uncertainty.trim()}_`);
   if (kb.clarifying_questions.length) parts.push(lang === "bn" ? "\n**আরও নির্দিষ্ট উত্তরের জন্য জানান:**" : "\n**For a more specific answer, tell me:**", ...kb.clarifying_questions.map((q) => `- ${q}`));
   return parts.join("\n");
 }
@@ -130,13 +166,25 @@ export async function streamChatReply(input: {
   const lastUser = input.history.findLast((m) => m.role === "user");
   const question = lastUser ? messageText(lastUser) : "";
 
-  // 1) The encyclopedia knowledge graph: a verified, page-cited answer, or an honest "not covered".
+  // 1) The encyclopedia knowledge graph: a verified, page-cited answer when the book covers the question.
+  //    A partial answer is completed from the assistant's own knowledge after the cited part.
   const kb = await consultKnowledgeBase({ history: input.history, question, lang: input.lang, context: input.context, abortSignal: input.abortSignal });
-  if (kb && (isGrounded(kb) || kbMode() === "strict")) {
-    return verifiedReply({ history: input.history, text: kbReplyText(kb, input.lang), question, lang: input.lang, sources: isGrounded(kb) ? kbSources(kb) : [], abortSignal: input.abortSignal, onComplete: input.onComplete });
+  if (kb && isGrounded(kb)) {
+    const partial = kb.status === "partial";
+    const text = kbReplyText(kb, input.lang, { showLimits: !partial });
+    return verifiedReply({
+      history: input.history,
+      text,
+      question,
+      lang: input.lang,
+      sources: kbSources(kb),
+      supplementSystem: partial ? chatSystemPrompt(input.lang) + (input.context ?? "") + supplementNote(text, kb.uncertainty.trim()) : undefined,
+      abortSignal: input.abortSignal,
+      onComplete: input.onComplete,
+    });
   }
-  // Assist mode only: the encyclopedia had no evidence, so the general assistant answers, labelled as unverified.
-  const unverifiedNote = kb ? UNVERIFIED_NOTE : "";
+  // The encyclopedia did not cover it: the general assistant answers from its own knowledge.
+  const generalNote = kb ? GENERAL_KNOWLEDGE_NOTE : "";
 
   // 2) RAG over the FAO manuals: passages that match the question (none if not configured).
   const passages = await retrieveBookPassages(question, input.abortSignal);
@@ -166,7 +214,7 @@ export async function streamChatReply(input: {
 
   const result = streamText({
     model: await getModel(kind),
-    system: chatSystemPrompt(input.lang) + (input.context ?? "") + passagesPrompt(passages) + unverifiedNote,
+    system: chatSystemPrompt(input.lang) + (input.context ?? "") + passagesPrompt(passages) + generalNote,
     messages: await convertToModelMessages(history),
     maxOutputTokens: 1800,
     abortSignal: input.abortSignal,
