@@ -204,6 +204,10 @@ flowchart LR
 - **Cross-lingual:** Bangla questions retrieve English passages through a multilingual embedding model (Qwen3, chosen after measuring Bangla→English matching — `text-embedding-3-small` could not separate related from unrelated passages); the model answers in the gardener's language and adapts field-garden advice to rooftop containers.
 - **Add a book:** append an entry with `title`, `publisher`, `year`, `url`, `license` and `parts` to `rag/sources.json`, then run `npm run rag:ingest`. Only add texts whose licence allows it.
 
+### Agriculture Encyclopedia knowledge base (rag-service)
+
+A second, stricter knowledge base, built from *Encyclopedia of Agriculture and Food Systems* (Elsevier, 2014; `Book/Agriculture.pdf`, not committed), runs as its own FastAPI + LangGraph service in [`rag-service/`](rag-service/README.md). It ingests the 2,741-page PDF with structure-aware chunking: tables, figure captions, OCR for scanned pages, and page and metadata tags. It retrieves with hybrid pgvector and full-text search, and every answer passes evidence verification, conflict detection and deterministic citation checks; numbers must appear in the cited page. When the evidence is missing, the service abstains or asks a clarifying question instead. The chat, photo analysis, care suggestions and garden designer use it when `RAG_SERVICE_URL` is set, and show the original page for every cited claim, e.g. "Vol. 4, p. 461 (PDF p. 2018)".
+
 ## Project structure
 
 ```

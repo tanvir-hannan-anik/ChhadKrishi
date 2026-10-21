@@ -218,4 +218,20 @@ export const designPlanSchema = z.object({
     ),
 });
 
-export type DesignPlan = z.infer<typeof designPlanSchema>;
+/**
+ * Evidence behind a plan's plant choices, from the Agriculture Encyclopedia (rag-service). Added by
+ * the server after generation; absent when the knowledge base is not configured.
+ */
+export interface PlanEvidence {
+  status: "grounded" | "partial" | "no_evidence";
+  /** Per plan plant (same order): its citation numbers, or why it is shown without them. */
+  plants: { name: string; citations: number[]; basis: "evidence" | "gardener_choice" }[];
+  /** Evidence-backed design constraints (container, drainage, light, water…) with [n] citations. */
+  constraints: string;
+  citations: { n: number; article: string; section: string; pageRef: string; quote: string; url: string }[];
+  /** Plants the model proposed that the evidence did not support; removed in strict mode. */
+  removedPlants: string[];
+  uncertainty: string;
+}
+
+export type DesignPlan = z.infer<typeof designPlanSchema> & { evidence?: PlanEvidence };

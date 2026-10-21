@@ -46,3 +46,11 @@ next-env.d.ts
 /.next-test/
 
 __pycache__/
+
+# Agriculture Encyclopedia PDF (© Elsevier; not redistributable) and the KB service's local data
+/Book/
+/rag-service/data/
+/rag-service/eval/reports/
+/rag-service/*.log
+.pytest_cache/
+

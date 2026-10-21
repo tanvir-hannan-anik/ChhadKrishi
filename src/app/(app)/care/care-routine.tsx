@@ -20,7 +20,19 @@ const EVERY = [1, 2, 3, 4, 5, 7, 10, 14, 15, 21, 30];
 const KIND_ICON = { water: Droplets, fertilize: LeafIcon, prune: Scissors, pest: Bug, other: CircleDot } as const;
 const KIND_TONE = { water: "bg-sky-100 text-sky-700", fertilize: "bg-sprout text-forest", prune: "bg-moss text-leaf", pest: "bg-clay/15 text-clay", other: "bg-cream text-ink-soft" } as const;
 
-type Suggestion = { plantId: string | null; plantName: string | null; title: string; kind: CareKind; everyDays: number; timeOfDay: TimeOfDay; reason: string; selected: boolean };
+/** A source page from the Agriculture Encyclopedia that supports a suggested task. */
+type CareSource = { n: number; article: string; pageRef: string; quote: string };
+type Suggestion = {
+  plantId: string | null;
+  plantName: string | null;
+  title: string;
+  kind: CareKind;
+  everyDays: number;
+  timeOfDay: TimeOfDay;
+  reason: string;
+  sources?: CareSource[];
+  selected: boolean;
+};
 
 function formatDate(iso: string, lang: Lang) {
   return new Intl.DateTimeFormat(lang === "bn" ? "bn-BD" : "en-GB", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${iso}T00:00:00Z`));
@@ -393,6 +405,11 @@ function SuggestPanel({ plants, aiConfigured, errorText, onAdded }: { plants: Ga
                       {s.plantName ?? c.wholeGarden} · {c.kinds[s.kind]} · {s.everyDays === 1 ? c.daily : c.everyDays(formatNumber(s.everyDays, lang))} · {c.times[s.timeOfDay]}
                     </p>
                     {s.reason && <p className="mt-1 px-1 text-xs text-ink-soft">{s.reason}</p>}
+                    {s.sources?.map((source) => (
+                      <p key={source.n} className="mt-1 px-1 text-[11px] text-leaf" title={source.quote}>
+                        📖 {source.article} — {source.pageRef}
+                      </p>
+                    ))}
                   </div>
                 </div>
               </li>

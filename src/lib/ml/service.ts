@@ -25,8 +25,12 @@ export class MlServiceError extends Error {
 
 /** Calls the service with a deadline; a free-tier host waking from sleep can take ~1 min. */
 export async function mlFetch(path: string, init: RequestInit & { timeoutMs?: number; signal?: AbortSignal }): Promise<Response> {
-  const base = process.env.ML_SERVICE_URL?.replace(/\/+$/, "");
-  const token = process.env.ML_SERVICE_TOKEN;
+  return mlFetchTo(process.env.ML_SERVICE_URL, process.env.ML_SERVICE_TOKEN, path, init);
+}
+
+/** The same token-authenticated, deadline-bound call for any of our self-hosted services. */
+export async function mlFetchTo(baseUrl: string | undefined, token: string | undefined, path: string, init: RequestInit & { timeoutMs?: number; signal?: AbortSignal }): Promise<Response> {
+  const base = baseUrl?.replace(/\/+$/, "");
   if (!base || !token) throw new MlServiceError(503);
 
   const { timeoutMs = 90_000, signal, ...rest } = init;
