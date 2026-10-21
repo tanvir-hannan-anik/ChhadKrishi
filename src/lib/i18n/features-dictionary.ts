@@ -274,7 +274,7 @@ const bn: FeatureDictionary = {
     addSelected: (n) => `${n}টি কাজ যোগ করুন`,
     discard: "বাদ দিন",
     added: (n) => `${n}টি কাজ রুটিনে যোগ হয়েছে`,
-    remindersNote: "যেদিন কাজ থাকবে, সকালে 🔔 নোটিফিকেশনে রিমাইন্ডার পাবেন — প্রোফাইল থেকে ফোনেও চালু করতে পারেন।",
+    remindersNote: "যেদিন কাজ থাকবে, সকালে 🔔 নোটিফিকেশনে রিমাইন্ডার পাবেন।",
   },
   cart: {
     title: "আপনার কার্ট",
@@ -438,7 +438,7 @@ const en: FeatureDictionary = {
     addSelected: (n) => `Add ${n} tasks`,
     discard: "Discard",
     added: (n) => `${n} tasks added to your routine`,
-    remindersNote: "On days with tasks you'll get a morning reminder under 🔔 — turn on phone notifications in your profile.",
+    remindersNote: "On days with tasks you'll get a morning reminder under 🔔.",
   },
   cart: {
     title: "Your cart",

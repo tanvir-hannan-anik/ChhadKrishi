@@ -6,6 +6,17 @@ import type { Lang } from "@/lib/i18n/dictionary";
 export type PushState = "unsupported" | "default" | "granted" | "denied";
 export type EnableResult = "ok" | "denied" | "unsupported" | "not-configured" | "failed";
 
+let configured: Promise<boolean> | null = null;
+
+/** Whether the server has push keys (VAPID). Asked once per page load. */
+export function pushConfigured(): Promise<boolean> {
+  configured ??= fetch("/api/notifications/subscribe")
+    .then((response) => (response.ok ? (response.json() as Promise<{ publicKey: string | null }>) : { publicKey: null }))
+    .then(({ publicKey }) => Boolean(publicKey))
+    .catch(() => false);
+  return configured;
+}
+
 export function pushState(): PushState {
   if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return "unsupported";
   return Notification.permission;

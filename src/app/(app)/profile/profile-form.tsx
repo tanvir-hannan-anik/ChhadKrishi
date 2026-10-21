@@ -38,7 +38,20 @@ async function avatarDataUrl(file: File): Promise<string> {
   return webp.startsWith("data:image/webp") ? webp : canvas.toDataURL("image/jpeg", 0.85);
 }
 
-export function ProfileForm({ name: initialName, email, image: initialImage, profile }: { name: string; email: string; image: string | null; profile: Profile }) {
+/** `pushAvailable`: the server has push keys; without them the device-notification card is hidden. */
+export function ProfileForm({
+  name: initialName,
+  email,
+  image: initialImage,
+  profile,
+  pushAvailable,
+}: {
+  name: string;
+  email: string;
+  image: string | null;
+  profile: Profile;
+  pushAvailable: boolean;
+}) {
   const { t, lang } = useLanguage();
   const p = t.profile;
   const router = useRouter();
@@ -266,7 +279,7 @@ export function ProfileForm({ name: initialName, email, image: initialImage, pro
           </Card>
         </div>
 
-        <PushSettings />
+        {pushAvailable && <PushSettings />}
       </main>
     </div>
   );

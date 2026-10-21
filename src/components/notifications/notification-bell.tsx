@@ -10,7 +10,7 @@ import { formatNumber, type Lang } from "@/lib/i18n/dictionary";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { loadNotifications, markNotificationsRead, useNotifications } from "@/lib/notifications/client";
 import { notificationText } from "@/lib/notifications/messages";
-import { enablePush, pushState } from "@/lib/notifications/push-client";
+import { enablePush, pushConfigured, pushState } from "@/lib/notifications/push-client";
 
 const KIND_ICON = { weather: CloudSunRain, care: CalendarCheck, order: Package, "push-enabled": BellRing } as const;
 const KIND_TONE = { weather: "bg-sky-100 text-sky-700", care: "bg-sprout text-forest", order: "bg-clay/15 text-clay", "push-enabled": "bg-moss text-leaf" } as const;
@@ -51,8 +51,12 @@ export function NotificationBell() {
   }, [open]);
 
   const toggle = () => {
-    // Permission can change in browser settings, so it is read each time the list opens.
-    if (!open) setCanOfferPush(pushState() === "default");
+    // Device push is offered only when the server is set up for it and the browser hasn't been
+    // asked yet. Permission can change in browser settings, so it is read on every open.
+    if (!open) {
+      setCanOfferPush(false);
+      if (pushState() === "default") void pushConfigured().then(setCanOfferPush);
+    }
     setOpen(!open);
   };
 

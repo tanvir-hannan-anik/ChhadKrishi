@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AuthRequired } from "@/components/auth/auth-required";
 import { getPageSession } from "@/lib/auth/session";
+import { pushPublicKey } from "@/lib/notifications/store";
 import { getProfile } from "@/lib/profile/store";
 import { ProfileForm } from "./profile-form";
 
@@ -19,5 +20,5 @@ async function ProfileGate() {
   const { session, expired } = await getPageSession();
   if (!session) return <AuthRequired page="profile" expired={expired} />;
   const profile = await getProfile(session.user.id);
-  return <ProfileForm name={session.user.name} email={session.user.email} image={session.user.image ?? null} profile={profile} />;
+  return <ProfileForm name={session.user.name} email={session.user.email} image={session.user.image ?? null} profile={profile} pushAvailable={pushPublicKey() !== null} />;
 }
