@@ -29,6 +29,26 @@ const PRODUCT_TERMS: Record<string, RegExp> = {
   "pot-grow-bag-5": /grow ?bags?|জিও ব্যাগ|গ্রো ব্যাগ/i,
   "seed-tomato-local": /tomato seeds?|টমেটো(র)? বীজ/i,
   "seed-green-chilli": /chilli seeds?|chili seeds?|মরিচ(ের)? বীজ/i,
+  "seed-red-amaranth": /amaranth seeds?|লাল ?শাক(ের)? বীজ/i,
+  "seed-spinach": /spinach seeds?|পালং ?শাক(ের)? বীজ/i,
+  "seed-coriander": /coriander seeds?|ধনি(য়া|ে)(র)? বীজ/i,
+  "seed-okra": /okra seeds?|ঢেঁড়স(ের)? বীজ/i,
+  "seed-brinjal": /(brinjal|eggplant) seeds?|বেগুন(ের)? বীজ/i,
+  "seed-cucumber": /cucumber seeds?|শসা(র)? বীজ/i,
+  "seed-bottle-gourd": /(bottle )?gourd seeds?|লাউ(য়ের|ের)? বীজ/i,
+  "seed-tulsi": /(tulsi|holy basil) seeds?|তুলসী(র)? বীজ/i,
+  "pot-seedling-tray": /seedling trays?|seed trays?|চারা(র)? ট্রে|সিডলিং ট্রে/i,
+  "pot-hanging-basket": /hanging (basket|planter|pot)s?|ঝুলন্ত টব/i,
+  "pot-window-box": /planter box(es)?|window box(es)?|প্ল্যান্টার বক্স/i,
+  "pot-cement-14in": /cement pots?|সিমেন্টের টব/i,
+  "fert-bone-meal-1kg": /bone ?meal|হাড়ের গুঁড়া/i,
+  "fert-neem-oil-250ml": /neem oil|নিম ?তেল/i,
+  "fert-potting-mix-10kg": /potting (mix|soil)|টবের মাটি/i,
+  "tool-hand-trowel": /trowel|খুরপি/i,
+  "tool-garden-gloves": /(garden(ing)?|protective) gloves|গ্লাভস/i,
+  "tool-watering-can-5l": /watering can|ঝাঁঝরি/i,
+  "tool-hose-nozzle": /hose nozzle|spray nozzle|নজল/i,
+  "tool-pruning-shears": /pruning shears|secateurs|pruners?|ছাঁটার কাঁচি/i,
 };
 
 function mentionedProducts(answer: string, products: Product[]): Product[] {
@@ -46,7 +66,7 @@ function planPrompt(lang: Lang, catalogue: string): string {
 
 Rules:
 - videoQuery: give one whenever the answer contains practical steps a gardener could watch being done (a pest or disease treatment, making a spray or compost, sowing, transplanting, pruning, potting, setting up containers or drainage). Make it short and specific to the crop and the action, e.g. "neem oil spray for aphids on chilli plants", written in ${lang === "bn" ? "Bangla" : "English"}. Use "" only when no such step exists.
-- productIds: include an item when the answer tells the gardener to use that kind of item (for example vermicompost, neem cake, a clay pot or grow bags, or seeds of that crop). Do not add items the answer does not call for.
+- productIds: include an item when the answer tells the gardener to use that kind of item (for example vermicompost, neem cake, neem oil, a clay pot or grow bags, a tool such as pruning shears, or seeds of that crop). Do not add items the answer does not call for.
 - For greetings, clarifying questions, refusals or unrelated topics, return "" and [].
 
 Shop items (id: name):

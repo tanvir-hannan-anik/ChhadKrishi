@@ -6,6 +6,7 @@ import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { SiteHeader } from "@/components/landing/site-header";
 import { UserGuide } from "@/components/landing/user-guide";
+import { WeatherIntro } from "@/components/landing/weather-intro";
 import { getServerSession } from "@/lib/auth/session";
 
 /**
@@ -23,6 +24,7 @@ export default function Home() {
           <VisitorOnly>
             <Benefits />
             <Features />
+            <WeatherIntro />
             <HowItWorks />
             <UserGuide />
             <CallToAction />

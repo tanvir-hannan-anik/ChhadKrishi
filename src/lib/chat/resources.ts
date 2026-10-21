@@ -21,6 +21,7 @@ export interface ProductResource {
   nameEn: string;
   category: ProductCategory;
   priceBdt: number;
+  image: string | null;
 }
 
 /** A reference-book passage the answer drew on (RAG). */

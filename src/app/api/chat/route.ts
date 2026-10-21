@@ -8,6 +8,7 @@ import { checkImageDataUrl } from "@/lib/ai/image-validation";
 import { gardenContextNote } from "@/lib/ai/prompts";
 import { takeAiQuota } from "@/lib/ai/rate-limit";
 import { gardenContext } from "@/lib/garden/store";
+import { getWeatherForUser, weatherContextNote } from "@/lib/weather/service";
 import {
   appendMessage,
   createConversation,
@@ -19,6 +20,7 @@ import {
 } from "@/lib/chat/store";
 
 const MAX_TEXT_LENGTH = 4000;
+const WEATHER_WAIT_MS = 2500;
 
 // The client sends only the new message; history always comes from the database.
 const bodySchema = z.object({
@@ -96,10 +98,16 @@ export async function POST(request: Request) {
     history = [...history, userMessage];
   }
 
+  // The weather is cached and capped at a short wait: a slow forecast must not delay the answer.
+  const [garden, weather] = await Promise.all([
+    gardenContext(userId),
+    Promise.race([getWeatherForUser(userId).then(weatherContextNote), new Promise<string>((resolve) => setTimeout(() => resolve(""), WEATHER_WAIT_MS))]).catch(() => ""),
+  ]);
+
   return streamChatReply({
     history,
     lang,
-    context: gardenContextNote(await gardenContext(userId)),
+    context: gardenContextNote(garden) + weather,
     abortSignal: request.signal,
     onComplete: (assistantMessage) => appendMessage(conversationId, assistantMessage),
   });

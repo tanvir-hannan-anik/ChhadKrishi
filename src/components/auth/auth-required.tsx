@@ -13,7 +13,7 @@ import { useLanguage } from "@/lib/i18n/language-context";
  * Rendered by a protected page when the server found no valid session. Opens the sign-in
  * modal in place; after login the page is refreshed and the server renders the real content.
  */
-export type ProtectedPage = "chat" | "shop" | "orders" | "analyze" | "designer" | "dashboard" | "garden" | "care";
+export type ProtectedPage = "chat" | "shop" | "orders" | "analyze" | "designer" | "dashboard" | "garden" | "care" | "weather" | "profile";
 
 export function AuthRequired({ page, expired }: { page: ProtectedPage; expired: boolean }) {
   const { t } = useLanguage();

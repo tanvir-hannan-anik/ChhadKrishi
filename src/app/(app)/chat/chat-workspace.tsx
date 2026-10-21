@@ -510,14 +510,14 @@ function EmptyState({ name, onPick, disabled }: { name: string; onPick: (q: stri
       <p className="mt-1 text-ink-soft sm:mt-2">{t.chat.emptySubtitle}</p>
       <FeatureCards className="mt-5 text-left sm:mt-8" />
       <p className="sr-only">{t.landing.quickPrompts}</p>
-      <ul className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+      <ul className="mt-3 flex flex-wrap justify-center gap-2">
         {t.hero.suggestions.map((suggestion) => (
-          <li key={suggestion} className="shrink-0">
+          <li key={suggestion} className="max-w-full max-sm:[&:nth-child(n+4)]:hidden">
             <button
               type="button"
               disabled={disabled}
               onClick={() => onPick(suggestion)}
-              className="min-h-9 rounded-full border border-line bg-white px-3.5 py-1.5 text-sm text-ink-soft transition-all hover:-translate-y-0.5 hover:border-leaf/40 hover:text-forest active:scale-[0.97] disabled:opacity-50"
+              className="min-h-9 max-w-full truncate rounded-full border border-line bg-white px-3.5 py-1.5 text-sm text-ink-soft transition-all hover:-translate-y-0.5 hover:border-leaf/40 hover:text-forest active:scale-[0.97] disabled:opacity-50"
             >
               {suggestion}
             </button>

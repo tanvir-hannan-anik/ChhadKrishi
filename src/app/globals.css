@@ -74,11 +74,99 @@
   @keyframes shimmer {
     to { background-position: 200% center; }
   }
+
+  /* Weather scenes (components/weather/weather-art.tsx) */
+  --animate-wx-spin: wx-spin 30s linear infinite;
+  --animate-wx-pulse: wx-pulse 4s ease-in-out infinite;
+  --animate-wx-drift: wx-drift 18s ease-in-out infinite;
+  --animate-wx-bob: wx-bob 3s ease-in-out infinite;
+  --animate-wx-fall: wx-fall 0.9s linear infinite;
+  --animate-wx-flash: wx-flash 5s ease-out infinite;
+  --animate-wx-twinkle: wx-twinkle 3s ease-in-out infinite;
+  --animate-wx-flutter: wx-flutter 9s linear infinite;
+  --animate-wx-fog: wx-fog 12s ease-in-out infinite;
+  --animate-wx-heat: wx-heat 3.5s ease-in-out infinite;
+  --animate-wx-ripple: wx-ripple 2.4s ease-out infinite;
+  --animate-wx-sway: wx-sway 4s ease-in-out infinite;
+
+  @keyframes wx-spin {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes wx-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.55; }
+    50% { transform: scale(1.12); opacity: 0.85; }
+  }
+  @keyframes wx-drift {
+    0%, 100% { transform: translate3d(-6%, 0, 0); }
+    50% { transform: translate3d(6%, -4%, 0); }
+  }
+  @keyframes wx-bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
+  }
+  @keyframes wx-fall {
+    /* cqh: the scene's height (it is a size container), so drops cross the whole sky. */
+    from { transform: translate3d(0, -20cqh, 0) rotate(12deg); opacity: 0; }
+    15% { opacity: 1; }
+    to { transform: translate3d(-18px, 110cqh, 0) rotate(12deg); opacity: 0.9; }
+  }
+  @keyframes wx-flash {
+    0%, 88%, 100% { opacity: 0; }
+    90% { opacity: 0.85; }
+    92% { opacity: 0.1; }
+    94% { opacity: 0.6; }
+  }
+  @keyframes wx-twinkle {
+    0%, 100% { opacity: 0.25; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.1); }
+  }
+  @keyframes wx-flutter {
+    from { transform: translate3d(0, -10%, 0) rotate(0deg); opacity: 0; }
+    10% { opacity: 1; }
+    to { transform: translate3d(-60px, 110cqh, 0) rotate(540deg); opacity: 0.2; }
+  }
+  @keyframes wx-fog {
+    0%, 100% { transform: translate3d(-10%, 0, 0); opacity: 0.45; }
+    50% { transform: translate3d(10%, 0, 0); opacity: 0.8; }
+  }
+  @keyframes wx-heat {
+    0%, 100% { transform: translateY(0) scaleY(1); opacity: 0.25; }
+    50% { transform: translateY(-6px) scaleY(1.4); opacity: 0.55; }
+  }
+  @keyframes wx-ripple {
+    from { transform: scale(0.2); opacity: 0.7; }
+    to { transform: scale(1.6); opacity: 0; }
+  }
+  @keyframes wx-sway {
+    0%, 100% { transform: rotate(-6deg); }
+    50% { transform: rotate(6deg); }
+  }
 }
 
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 5rem;
+}
+
+/*
+ * No sideways scrolling anywhere, and no visible scrollbars: pages and panels still scroll by
+ * wheel, touch and keyboard, without the bars taking space or drawing attention.
+ */
+html,
+body {
+  overflow-x: clip;
+}
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* Landing features: fills over one feature's turn, then the next feature shows. */
+@keyframes feature-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 
 body {

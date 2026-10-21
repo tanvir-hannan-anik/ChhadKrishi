@@ -165,51 +165,54 @@ function TaskRow({ task, onPatch, onDelete }: { task: CareTask; onPatch: (change
   const c = t.care;
   const [confirm, setConfirm] = useState(false);
   const Icon = KIND_ICON[task.kind];
+  const selectClass = "w-full min-w-0 rounded-full border border-line bg-white px-3 py-2 text-sm text-ink-soft sm:py-1.5";
+  // Phones: icon · title · delete on one row, the two schedule selects side by side below.
+  // Wider screens: everything on one row (the selects' wrapper dissolves into the grid).
   return (
-    <motion.li layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2, ease: EASE_OUT }} className="flex flex-wrap items-center gap-3 py-3">
+    <motion.li
+      layout
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.2, ease: EASE_OUT }}
+      className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2.5 py-3.5 sm:grid-cols-[auto_minmax(0,1fr)_9.5rem_9rem_auto] sm:items-center"
+    >
       <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${KIND_TONE[task.kind]}`}>
         <Icon className="h-4 w-4" />
       </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-ink">{task.title}</p>
-        <p className="text-xs text-ink-faint">
-          {task.plantName ?? c.wholeGarden} · {c.kinds[task.kind]} · {task.dueToday ? c.dueToday : c.nextDue(formatDate(task.nextDue, lang))}
+      <div className="min-w-0">
+        <p className="line-clamp-2 font-medium leading-snug text-ink">{task.title}</p>
+        <p className="mt-0.5 text-xs text-ink-faint">
+          {task.plantName ?? c.wholeGarden} · {c.kinds[task.kind]} ·{" "}
+          <span className={task.dueToday ? "font-semibold text-leaf" : ""}>{task.dueToday ? c.dueToday : c.nextDue(formatDate(task.nextDue, lang))}</span>
         </p>
       </div>
-      <select
-        aria-label={c.every}
-        value={task.everyDays}
-        onChange={(e) => onPatch({ everyDays: Number(e.target.value) })}
-        className="rounded-full border border-line bg-white px-3 py-1.5 text-sm text-ink-soft"
-      >
-        {[...new Set([...EVERY, task.everyDays])].sort((a, b) => a - b).map((n) => (
-          <option key={n} value={n}>
-            {n === 1 ? c.daily : c.everyDays(formatNumber(n, lang))}
-          </option>
-        ))}
-      </select>
-      <select
-        aria-label={c.time}
-        value={task.timeOfDay}
-        onChange={(e) => onPatch({ timeOfDay: e.target.value as TimeOfDay })}
-        className="rounded-full border border-line bg-white px-3 py-1.5 text-sm text-ink-soft"
-      >
-        {TIMES.map((time) => (
-          <option key={time} value={time}>
-            {c.times[time]}
-          </option>
-        ))}
-      </select>
       <button
         type="button"
         onClick={() => (confirm ? onDelete() : setConfirm(true))}
         onBlur={() => setConfirm(false)}
         aria-label={confirm ? t.common.confirmDelete : t.common.delete}
         title={confirm ? t.common.confirmDelete : t.common.delete}
-        className={`rounded-xl p-2 transition-colors ${confirm ? "bg-clay text-paper" : "text-ink-faint hover:bg-clay/10 hover:text-clay"}`}
+        className={`rounded-xl p-2 transition-colors sm:order-last ${confirm ? "bg-clay text-paper" : "text-ink-faint hover:bg-clay/10 hover:text-clay"}`}
       >
         {confirm ? <Check className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
       </button>
+      <div className="col-span-3 grid grid-cols-2 gap-2 pl-12 sm:contents">
+        <select aria-label={c.every} value={task.everyDays} onChange={(e) => onPatch({ everyDays: Number(e.target.value) })} className={selectClass}>
+          {[...new Set([...EVERY, task.everyDays])].sort((a, b) => a - b).map((n) => (
+            <option key={n} value={n}>
+              {n === 1 ? c.daily : c.everyDays(formatNumber(n, lang))}
+            </option>
+          ))}
+        </select>
+        <select aria-label={c.time} value={task.timeOfDay} onChange={(e) => onPatch({ timeOfDay: e.target.value as TimeOfDay })} className={selectClass}>
+          {TIMES.map((time) => (
+            <option key={time} value={time}>
+              {c.times[time]}
+            </option>
+          ))}
+        </select>
+      </div>
     </motion.li>
   );
 }

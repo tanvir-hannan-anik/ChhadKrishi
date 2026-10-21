@@ -1,17 +1,20 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { BookOpen, ExternalLink, Package, Play, Search, ShoppingBasket, Sprout, Wheat } from "lucide-react";
+import { BookOpen, ExternalLink, Package, Play, Search, ShoppingBasket, Shovel, Sprout, Wheat } from "lucide-react";
 import { EASE_OUT } from "@/components/motion/reveal";
 import type { BookSource, ChatResources, ProductResource, VideoResource } from "@/lib/chat/resources";
 import { formatNumber } from "@/lib/i18n/dictionary";
 import { useLanguage } from "@/lib/i18n/language-context";
 
-const PRODUCT_ICONS = { seed: Sprout, pot: Package, fertilizer: Wheat } as const;
-const PRODUCT_TINTS = { seed: "bg-sprout text-forest", pot: "bg-clay/15 text-clay", fertilizer: "bg-moss text-leaf" } as const;
+const PRODUCT_ICONS = { seed: Sprout, pot: Package, fertilizer: Wheat, tool: Shovel } as const;
+const PRODUCT_TINTS = { seed: "bg-sprout text-forest", pot: "bg-clay/15 text-clay", fertilizer: "bg-moss text-leaf", tool: "bg-cream text-clay" } as const;
 
-const rowClass = "-mx-1 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-1 pt-1 pb-2 [scrollbar-width:thin]";
+// Grids that wrap, so nothing scrolls sideways under an answer.
+const videoGrid = "grid grid-cols-1 gap-2.5 pt-1 pb-2 sm:grid-cols-2 xl:grid-cols-3";
+const productGrid = "grid grid-cols-2 gap-2.5 pt-1 pb-2 sm:grid-cols-3";
 
 /**
  * Videos and shop items shown below an answer — never above it. Each group is one compact,
@@ -80,9 +83,9 @@ export function ResourceCards({ resources, streaming }: { resources: ChatResourc
           <h3 className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-ink-soft">
             <Play className="h-3.5 w-3.5 fill-current text-clay" /> {r.videos}
           </h3>
-          <ul className={rowClass}>
+          <ul className={videoGrid}>
             {resources.videos.map((video) => (
-              <li key={video.url} className="w-56 shrink-0 snap-start sm:w-60">
+              <li key={video.url} className="min-w-0">
                 <VideoCard video={video} />
               </li>
             ))}
@@ -94,9 +97,9 @@ export function ResourceCards({ resources, streaming }: { resources: ChatResourc
           <h3 className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-ink-soft">
             <ShoppingBasket className="h-3.5 w-3.5 text-leaf" /> {r.products}
           </h3>
-          <ul className={rowClass}>
+          <ul className={productGrid}>
             {resources.products.map((product) => (
-              <li key={product.id} className="w-40 shrink-0 snap-start">
+              <li key={product.id} className="min-w-0">
                 <ProductCard product={product} />
               </li>
             ))}
@@ -164,8 +167,13 @@ function ProductCard({ product }: { product: ProductResource }) {
       href={`/shop#product-${product.id}`}
       className="group flex h-full flex-col rounded-2xl bg-white p-2.5 shadow-soft ring-1 ring-line transition-shadow hover:shadow-lift"
     >
-      <span className={`flex aspect-[4/3] items-center justify-center rounded-xl ${PRODUCT_TINTS[product.category]}`}>
-        <Icon className="h-8 w-8 transition-transform group-hover:scale-110" />
+      <span className={`relative flex aspect-4/3 items-center justify-center overflow-hidden rounded-xl ${PRODUCT_TINTS[product.category]}`}>
+        {/* Chats saved before products had photos carry no image. */}
+        {product.image ? (
+          <Image src={product.image} alt="" fill sizes="10rem" className="object-cover transition-transform group-hover:scale-105" />
+        ) : (
+          <Icon className="h-8 w-8 transition-transform group-hover:scale-110" />
+        )}
       </span>
       <span className="mt-2 line-clamp-2 flex-1 text-sm leading-snug font-medium text-ink">{lang === "bn" ? product.nameBn : product.nameEn}</span>
       <span className="mt-1 flex items-center justify-between gap-1">

@@ -134,13 +134,13 @@ export function Hero({ showMoreCue = true }: { showMoreCue?: boolean }) {
 
         <motion.div variants={item} className="mt-3 w-full sm:mt-4">
           <p className="sr-only">{t.hero.suggestionsLabel}</p>
-          <ul className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+          <ul className="flex flex-wrap justify-center gap-2">
             {t.hero.suggestions.map((suggestion) => (
-              <li key={suggestion} className="shrink-0 snap-start">
+              <li key={suggestion} className="max-w-full max-sm:[&:nth-child(n+5)]:hidden">
                 <button
                   type="button"
                   onClick={() => applyPrompt(suggestion)}
-                  className="min-h-9 rounded-full border border-line bg-white/70 px-3.5 py-1.5 text-sm text-ink-soft backdrop-blur transition-all hover:-translate-y-0.5 hover:border-leaf/40 hover:bg-white hover:text-forest active:translate-y-0 active:scale-[0.97]"
+                  className="min-h-9 max-w-full truncate rounded-full border border-line bg-white/70 px-3.5 py-1.5 text-sm text-ink-soft backdrop-blur transition-all hover:-translate-y-0.5 hover:border-leaf/40 hover:bg-white hover:text-forest active:translate-y-0 active:scale-[0.97]"
                 >
                   {suggestion}
                 </button>
@@ -154,7 +154,7 @@ export function Hero({ showMoreCue = true }: { showMoreCue?: boolean }) {
             variants={item}
             href="#benefits"
             aria-label={t.nav.benefits}
-            className="mt-8 hidden h-10 w-10 items-center justify-center rounded-full text-ink-faint ring-1 ring-line transition-colors hover:bg-white hover:text-forest sm:inline-flex"
+            className="mt-6 inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-faint ring-1 ring-line transition-colors hover:bg-white hover:text-forest sm:mt-8"
           >
             <ChevronDown className="h-5 w-5 animate-bounce" />
           </motion.a>

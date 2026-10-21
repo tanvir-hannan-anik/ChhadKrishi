@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react";
-import { ArrowRight, CalendarCheck, Check, MessageCircle, Package, ScanSearch, ShoppingBasket, Sprout as SproutIcon, Wheat } from "lucide-react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { AnimatePresence, motion, useInView } from "motion/react";
+import Image from "next/image";
+import { ArrowRight, CalendarCheck, Check, MessageCircle, ScanSearch, ShoppingBasket } from "lucide-react";
 import { Leaf } from "@/components/brand";
 import { EASE_OUT, Reveal, SectionHeading } from "@/components/motion/reveal";
 import { useAuthGate } from "@/lib/auth/flow";
@@ -23,34 +24,82 @@ const DESTINATIONS = {
   shop: { href: "/shop", reason: "shop" },
 } as const;
 
+/** How long each feature stays on screen before the next one, while autoplaying. */
+const AUTOPLAY_MS = 6000;
+// After the visitor picks a tab themselves, autoplay waits this long before carrying on.
+const RESUME_AFTER_MS = 15000;
+
+const reducedMotionQuery = "(prefers-reduced-motion: reduce)";
+function subscribeReducedMotion(notify: () => void) {
+  const query = window.matchMedia(reducedMotionQuery);
+  query.addEventListener("change", notify);
+  return () => query.removeEventListener("change", notify);
+}
+
+/** Server-safe reduced-motion flag: false while hydrating, the real preference right after. */
+function usePrefersReducedMotion() {
+  return useSyncExternalStore(
+    subscribeReducedMotion,
+    () => window.matchMedia(reducedMotionQuery).matches,
+    () => false,
+  );
+}
+
 export function Features() {
   const { t } = useLanguage();
   const [active, setActive] = useState<FeatureKey>("chat");
+  const [hovering, setHovering] = useState(false);
+  const [held, setHeld] = useState(false);
+  // Bumped on every manual choice, restarting the hold timer.
+  const [holds, setHolds] = useState(0);
   const gate = useAuthGate();
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const inView = useInView(sectionRef, { amount: 0.35 });
+  const reduce = usePrefersReducedMotion();
+
+  // A manual choice holds autoplay for a while, then it resumes from that tab.
+  useEffect(() => {
+    if (!holds) return;
+    const timer = window.setTimeout(() => setHeld(false), RESUME_AFTER_MS);
+    return () => window.clearTimeout(timer);
+  }, [holds]);
+
+  // Features advance one by one while the section is on screen and the visitor isn't reading
+  // or choosing. Reduced-motion visitors switch tabs themselves.
+  const playing = inView && !hovering && !held && !reduce;
+  const advance = () => setActive((key) => TABS[(TABS.findIndex((tab) => tab.key === key) + 1) % TABS.length].key);
+
+  const choose = (key: FeatureKey) => {
+    setActive(key);
+    setHeld(true);
+    setHolds((n) => n + 1);
+  };
 
   const onTabKeyDown = (event: React.KeyboardEvent, index: number) => {
     const delta = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[event.key];
     if (!delta) return;
     event.preventDefault();
     const next = TABS[(index + delta + TABS.length) % TABS.length].key;
-    setActive(next);
+    choose(next);
     tabRefs.current[next]?.focus();
   };
 
   return (
-    <section id="features" className="relative bg-cream/70 py-20 sm:py-28">
+    <section ref={sectionRef} id="features" className="relative bg-cream/70 py-14 sm:py-28">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <SectionHeading eyebrow={t.features.eyebrow} title={t.features.title} subtitle={t.features.subtitle} />
 
-        <div className="mt-14 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-10">
+        <div
+          className="mt-8 grid grid-cols-1 gap-4 sm:mt-14 sm:gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-10"
+          onPointerEnter={(event) => event.pointerType === "mouse" && setHovering(true)}
+          onPointerLeave={() => setHovering(false)}
+          onFocusCapture={() => setHovering(true)}
+          onBlurCapture={() => setHovering(false)}
+        >
           <Reveal className="min-w-0">
-            <div
-              role="tablist"
-              aria-orientation="vertical"
-              aria-label={t.features.title}
-              className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-2 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0"
-            >
+            {/* Phones: four compact tabs in one row. Desktop: a vertical list with descriptions. */}
+            <div role="tablist" aria-label={t.features.title} className="grid grid-cols-4 gap-1.5 sm:gap-2 lg:grid-cols-1">
               {TABS.map(({ key, icon: Icon }, index) => {
                 const selected = key === active;
                 return (
@@ -65,9 +114,9 @@ export function Features() {
                     aria-selected={selected}
                     aria-controls="feature-panel"
                     tabIndex={selected ? 0 : -1}
-                    onClick={() => setActive(key)}
+                    onClick={() => choose(key)}
                     onKeyDown={(event) => onTabKeyDown(event, index)}
-                    className={`relative flex min-w-[15rem] shrink-0 snap-start items-start gap-4 rounded-2xl p-4 text-left transition-colors lg:min-w-0 ${
+                    className={`relative flex min-w-0 flex-col items-center gap-1.5 overflow-hidden rounded-2xl px-1 pt-3 pb-3.5 text-center transition-colors lg:flex-row lg:items-start lg:gap-4 lg:p-4 lg:text-left ${
                       selected ? "text-ink" : "text-ink-soft hover:bg-white/60"
                     }`}
                   >
@@ -79,20 +128,32 @@ export function Features() {
                       />
                     )}
                     <span
-                      className={`relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                      className={`relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors lg:h-11 lg:w-11 ${
                         selected ? "bg-forest text-paper" : "bg-moss text-forest"
                       }`}
                     >
                       <Icon className="h-5 w-5" />
                     </span>
-                    <span className="relative">
-                      <span className="block font-semibold text-ink">{t.features.tabs[key].title}</span>
-                      <span className="mt-0.5 block text-sm leading-snug">{t.features.tabs[key].desc}</span>
+                    <span className="relative min-w-0">
+                      <span className="block text-xs leading-tight font-semibold text-ink sm:text-sm lg:text-base">{t.features.tabs[key].title}</span>
+                      <span className="mt-0.5 hidden text-sm leading-snug lg:block">{t.features.tabs[key].desc}</span>
                     </span>
+                    {/* Time left on this feature; when it fills up, the next feature shows. */}
+                    {selected && !reduce && (
+                      <span aria-hidden className="absolute inset-x-3 bottom-1.5 h-1 overflow-hidden rounded-full bg-moss lg:inset-x-4">
+                        <span
+                          key={active}
+                          onAnimationEnd={advance}
+                          className="block h-full origin-left rounded-full bg-gradient-to-r from-leaf to-lime"
+                          style={{ animation: `feature-progress ${AUTOPLAY_MS}ms linear forwards`, animationPlayState: playing ? "running" : "paused" }}
+                        />
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
+            <p className="mt-3 text-center text-sm text-ink-soft lg:hidden">{t.features.tabs[active].desc}</p>
           </Reveal>
 
           <Reveal delay={0.1} className="min-w-0">
@@ -100,9 +161,10 @@ export function Features() {
               id="feature-panel"
               role="tabpanel"
               aria-labelledby={`feature-tab-${active}`}
-              className="relative min-h-[26rem] overflow-hidden rounded-[28px] bg-white p-5 shadow-lift ring-1 ring-line sm:p-8"
+              aria-live={playing ? "off" : "polite"}
+              className="relative min-h-[22rem] overflow-hidden rounded-[28px] bg-white p-4 shadow-lift ring-1 ring-line sm:min-h-[26rem] sm:p-8"
             >
-              <span className="absolute top-5 right-5 z-10 rounded-full bg-moss px-2.5 py-0.5 text-xs font-semibold text-forest">
+              <span className="absolute top-4 right-4 z-10 rounded-full bg-moss px-2.5 py-0.5 text-xs font-semibold text-forest sm:top-5 sm:right-5">
                 {t.features.exampleBadge}
               </span>
               <AnimatePresence mode="wait" initial={false}>
@@ -120,13 +182,13 @@ export function Features() {
                   {active === "shop" && <ShopPreview />}
                 </motion.div>
               </AnimatePresence>
-              <div className="mt-6 flex justify-end border-t border-line pt-5">
+              <div className="mt-5 flex border-t border-line pt-4 sm:mt-6 sm:justify-end sm:pt-5">
                 <motion.button
                   type="button"
                   onClick={() => gate({ kind: "navigate", ...DESTINATIONS[active] })}
                   whileHover={{ x: 2 }}
                   whileTap={{ scale: 0.97 }}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-forest px-5 py-2.5 text-sm font-semibold text-paper shadow-soft transition-colors hover:bg-canopy"
+                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-forest px-5 py-3 text-sm font-semibold text-paper shadow-soft transition-colors hover:bg-canopy sm:w-auto sm:py-2.5"
                 >
                   {t.landingCta[active]} <ArrowRight className="h-4 w-4" />
                 </motion.button>
@@ -143,7 +205,7 @@ export function Features() {
 function useStagedReveal(delays: number[]) {
   const ref = useRef<HTMLDivElement | null>(null);
   const inView = useInView(ref, { once: true, amount: 0.4 });
-  const reduce = useReducedMotion();
+  const reduce = usePrefersReducedMotion();
   const [stage, setStage] = useState(0);
 
   useEffect(() => {
@@ -362,9 +424,6 @@ function CarePreview() {
   );
 }
 
-const SHOP_ICONS = { seed: SproutIcon, pot: Package, fertilizer: Wheat } as const;
-const SHOP_TINTS = { seed: "bg-sprout text-forest", pot: "bg-clay/15 text-clay", fertilizer: "bg-moss text-leaf" } as const;
-
 function ShopPreview() {
   const { t, lang } = useLanguage();
   const s = t.features.shop;
@@ -398,26 +457,23 @@ function ShopPreview() {
 
       <motion.ul layout className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <AnimatePresence mode="popLayout" initial={false}>
-          {items.map((item) => {
-            const Icon = SHOP_ICONS[item.category];
-            return (
-              <motion.li
-                key={item.name}
-                layout
-                initial={{ opacity: 0, scale: 0.92 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.92 }}
-                transition={{ duration: 0.3, ease: EASE_OUT }}
-                className="rounded-2xl bg-cream/70 p-3 ring-1 ring-line"
-              >
-                <span className={`flex aspect-[4/3] items-center justify-center rounded-xl ${SHOP_TINTS[item.category]}`}>
-                  <Icon className="h-8 w-8" />
-                </span>
-                <p className="mt-2.5 text-sm leading-snug font-medium text-ink">{item.name}</p>
-                <p className="mt-0.5 text-sm font-semibold text-forest">৳{formatNumber(item.price, lang)}</p>
-              </motion.li>
-            );
-          })}
+          {items.map((item) => (
+            <motion.li
+              key={item.name}
+              layout
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+              transition={{ duration: 0.3, ease: EASE_OUT }}
+              className="rounded-2xl bg-cream/70 p-3 ring-1 ring-line"
+            >
+              <span className="relative block aspect-4/3 overflow-hidden rounded-xl bg-moss">
+                <Image src={item.image} alt="" fill sizes="(min-width: 640px) 12rem, 45vw" className="object-cover" />
+              </span>
+              <p className="mt-2.5 text-sm leading-snug font-medium text-ink">{item.name}</p>
+              <p className="mt-0.5 text-sm font-semibold text-forest">৳{formatNumber(item.price, lang)}</p>
+            </motion.li>
+          ))}
         </AnimatePresence>
       </motion.ul>
       <p className="mt-5 text-xs text-ink-faint">{s.comingSoon}</p>

@@ -3,14 +3,15 @@ import { designerDictionaries, type DesignerDictionary } from "./designer-dictio
 import { featureDictionaries, type FeatureDictionary } from "./features-dictionary";
 import { problemsDictionaries, type ProblemsDictionary } from "./problems-dictionary";
 import { shellDictionaries, type ShellDictionary } from "./shell-dictionary";
+import { weatherDictionaries, type WeatherDictionary } from "./weather-dictionary";
 
 export type Lang = "bn" | "en";
 
 export type FeatureKey = "chat" | "scan" | "care" | "shop";
-export type ShopCategory = "all" | "seed" | "pot" | "fertilizer";
+export type ShopCategory = "all" | "seed" | "pot" | "fertilizer" | "tool";
 export type GreetingKey = "welcome" | "morning" | "noon" | "afternoon" | "evening" | "night";
 
-export interface Dictionary extends AppDictionary, FeatureDictionary, DesignerDictionary, ProblemsDictionary, ShellDictionary {
+export interface Dictionary extends AppDictionary, FeatureDictionary, DesignerDictionary, ProblemsDictionary, ShellDictionary, WeatherDictionary {
   meta: { skipToContent: string };
   nav: {
     benefits: string;
@@ -61,7 +62,7 @@ export interface Dictionary extends AppDictionary, FeatureDictionary, DesignerDi
     care: { title: string; tasks: string[]; progress: (done: string, total: string) => string; allDone: string };
     shop: {
       filters: Record<ShopCategory, string>;
-      items: { name: string; price: number; category: Exclude<ShopCategory, "all"> }[];
+      items: { name: string; price: number; category: Exclude<ShopCategory, "all">; image: string }[];
       comingSoon: string;
       open: string;
     };
@@ -128,7 +129,7 @@ export interface Dictionary extends AppDictionary, FeatureDictionary, DesignerDi
     panelPoints: string[];
     trust: string;
   };
-  account: { signIn: string; signOut: string; menu: string; signingOut: string };
+  account: { signIn: string; signOut: string; menu: string; signingOut: string; profile: string };
   shopPage: { title: string; subtitle: string; greeting: (name: string) => string; comingSoon: string };
   chatPage: {
     back: string;
@@ -235,7 +236,7 @@ export interface AppDictionary {
   };
 }
 
-const bn: Omit<Dictionary, keyof FeatureDictionary | keyof DesignerDictionary | keyof ProblemsDictionary | keyof ShellDictionary> = {
+const bn: Omit<Dictionary, keyof FeatureDictionary | keyof DesignerDictionary | keyof ProblemsDictionary | keyof ShellDictionary | keyof WeatherDictionary> = {
   meta: { skipToContent: "মূল অংশে যান" },
   nav: {
     benefits: "সুবিধা",
@@ -363,14 +364,15 @@ const bn: Omit<Dictionary, keyof FeatureDictionary | keyof DesignerDictionary | 
       allDone: "চমৎকার! আজকের সব কাজ শেষ 🌱",
     },
     shop: {
-      filters: { all: "সব", seed: "বীজ", pot: "টব", fertilizer: "সার" },
+      filters: { all: "সব", seed: "বীজ", pot: "টব", fertilizer: "সার", tool: "সরঞ্জাম" },
       items: [
-        { name: "দেশি টমেটো বীজ", price: 60, category: "seed" },
-        { name: "কাঁচা মরিচ বীজ", price: 40, category: "seed" },
-        { name: "১২ ইঞ্চি মাটির টব", price: 180, category: "pot" },
-        { name: "জিও ব্যাগ (৫টি)", price: 250, category: "pot" },
-        { name: "ভার্মিকম্পোস্ট ৫ কেজি", price: 220, category: "fertilizer" },
-        { name: "নিম খৈল ১ কেজি", price: 90, category: "fertilizer" },
+        { name: "দেশি টমেটো বীজ", price: 60, category: "seed", image: "/products/seed-tomato-local.jpg" },
+        { name: "কাঁচা মরিচ বীজ", price: 40, category: "seed", image: "/products/seed-green-chilli.jpg" },
+        { name: "১২ ইঞ্চি মাটির টব", price: 180, category: "pot", image: "/products/pot-clay-12in.jpg" },
+        { name: "জিও ব্যাগ (৫টি)", price: 250, category: "pot", image: "/products/pot-grow-bag-5.jpg" },
+        { name: "ভার্মিকম্পোস্ট ৫ কেজি", price: 220, category: "fertilizer", image: "/products/fert-vermicompost-5kg.jpg" },
+        { name: "নিম খৈল ১ কেজি", price: 90, category: "fertilizer", image: "/products/fert-neem-cake-1kg.jpg" },
+        { name: "ঝাঁঝরি ৫ লিটার", price: 280, category: "tool", image: "/products/tool-watering-can-5l.jpg" },
       ],
       comingSoon: "দামগুলো নমুনা হিসেবে দেখানো হয়েছে।",
       open: "শপে যান",
@@ -485,7 +487,7 @@ const bn: Omit<Dictionary, keyof FeatureDictionary | keyof DesignerDictionary | 
     panelPoints: ["বাংলায় এআই পরামর্শ", "ছবি দিয়ে রোগ নির্ণয়", "যত্নের রুটিন ও কৃষি শপ"],
     trust: "আপনার পাসওয়ার্ড এনক্রিপ্ট করে নিরাপদে রাখা হয়।",
   },
-  account: { signIn: "লগইন", signOut: "লগআউট", menu: "অ্যাকাউন্ট মেনু", signingOut: "লগআউট হচ্ছে…" },
+  account: { signIn: "লগইন", signOut: "লগআউট", menu: "অ্যাকাউন্ট মেনু", signingOut: "লগআউট হচ্ছে…", profile: "আমার প্রোফাইল" },
   shopPage: {
     title: "কৃষি শপ",
     subtitle: "মানসম্মত বীজ, টব ও জৈব সার — আপনার ছাদবাগানের জন্য বাছাই করা।",
@@ -610,7 +612,7 @@ const bn: Omit<Dictionary, keyof FeatureDictionary | keyof DesignerDictionary | 
   },
 };
 
-const en: Omit<Dictionary, keyof FeatureDictionary | keyof DesignerDictionary | keyof ProblemsDictionary | keyof ShellDictionary> = {
+const en: Omit<Dictionary, keyof FeatureDictionary | keyof DesignerDictionary | keyof ProblemsDictionary | keyof ShellDictionary | keyof WeatherDictionary> = {
   meta: { skipToContent: "Skip to content" },
   nav: {
     benefits: "Benefits",
@@ -738,14 +740,15 @@ const en: Omit<Dictionary, keyof FeatureDictionary | keyof DesignerDictionary | 
       allDone: "Great job! All of today's tasks are done 🌱",
     },
     shop: {
-      filters: { all: "All", seed: "Seeds", pot: "Pots", fertilizer: "Fertiliser" },
+      filters: { all: "All", seed: "Seeds", pot: "Pots", fertilizer: "Fertiliser", tool: "Tools" },
       items: [
-        { name: "Local tomato seeds", price: 60, category: "seed" },
-        { name: "Green chilli seeds", price: 40, category: "seed" },
-        { name: "12-inch clay pot", price: 180, category: "pot" },
-        { name: "Grow bags (5 pcs)", price: 250, category: "pot" },
-        { name: "Vermicompost 5 kg", price: 220, category: "fertilizer" },
-        { name: "Neem cake 1 kg", price: 90, category: "fertilizer" },
+        { name: "Local tomato seeds", price: 60, category: "seed", image: "/products/seed-tomato-local.jpg" },
+        { name: "Green chilli seeds", price: 40, category: "seed", image: "/products/seed-green-chilli.jpg" },
+        { name: "12-inch clay pot", price: 180, category: "pot", image: "/products/pot-clay-12in.jpg" },
+        { name: "Grow bags (5 pcs)", price: 250, category: "pot", image: "/products/pot-grow-bag-5.jpg" },
+        { name: "Vermicompost 5 kg", price: 220, category: "fertilizer", image: "/products/fert-vermicompost-5kg.jpg" },
+        { name: "Neem cake 1 kg", price: 90, category: "fertilizer", image: "/products/fert-neem-cake-1kg.jpg" },
+        { name: "Watering can 5 L", price: 280, category: "tool", image: "/products/tool-watering-can-5l.jpg" },
       ],
       comingSoon: "Prices shown are samples.",
       open: "Visit the shop",
@@ -860,7 +863,7 @@ const en: Omit<Dictionary, keyof FeatureDictionary | keyof DesignerDictionary | 
     panelPoints: ["AI advice in Bangla", "Disease diagnosis by photo", "Care routines and Garden Shop"],
     trust: "Your password is encrypted and stored securely.",
   },
-  account: { signIn: "Log in", signOut: "Log out", menu: "Account menu", signingOut: "Logging out…" },
+  account: { signIn: "Log in", signOut: "Log out", menu: "Account menu", signingOut: "Logging out…", profile: "My profile" },
   shopPage: {
     title: "Garden Shop",
     subtitle: "Quality seeds, pots and organic fertiliser — picked for rooftop gardens.",
@@ -986,8 +989,8 @@ const en: Omit<Dictionary, keyof FeatureDictionary | keyof DesignerDictionary | 
 };
 
 export const dictionaries: Record<Lang, Dictionary> = {
-  bn: { ...bn, ...featureDictionaries.bn, ...designerDictionaries.bn, ...problemsDictionaries.bn, ...shellDictionaries.bn },
-  en: { ...en, ...featureDictionaries.en, ...designerDictionaries.en, ...problemsDictionaries.en, ...shellDictionaries.en },
+  bn: { ...bn, ...featureDictionaries.bn, ...designerDictionaries.bn, ...problemsDictionaries.bn, ...shellDictionaries.bn, ...weatherDictionaries.bn },
+  en: { ...en, ...featureDictionaries.en, ...designerDictionaries.en, ...problemsDictionaries.en, ...shellDictionaries.en, ...weatherDictionaries.en },
 };
 
 /** Render a number with Bangla digits when the active language is Bangla. */

@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { CalendarCheck, LayoutDashboard, Loader2, LogOut, Package, Sprout } from "lucide-react";
+import { CalendarCheck, LayoutDashboard, Loader2, LogOut, Package, Sprout, UserRound } from "lucide-react";
 import { authClient } from "@/lib/auth/client";
 import { openAuthModal } from "@/lib/auth/flow";
 import { useLanguage } from "@/lib/i18n/language-context";
+import { clearNotifications } from "@/lib/notifications/client";
+import { clearWeather } from "@/lib/weather/client";
 
-const PROTECTED_PREFIXES = ["/chat", "/shop", "/analyze", "/designer", "/dashboard", "/garden", "/care"];
+const PROTECTED_PREFIXES = ["/chat", "/shop", "/analyze", "/designer", "/dashboard", "/garden", "/care", "/weather", "/profile"];
 const ACCOUNT_LINKS = [
   { href: "/dashboard", key: "dashboard", icon: LayoutDashboard },
   { href: "/garden", key: "garden", icon: Sprout },
@@ -17,7 +19,10 @@ const ACCOUNT_LINKS = [
   { href: "/shop/orders", key: "orders", icon: Package },
 ] as const;
 
-/** `showLinks` is off inside the app, where the sidebar already lists every section. */
+/**
+ * Account menu behind the avatar (top right). The profile is reached only from here. `showLinks`
+ * is off inside the app, where the sidebar already lists every section.
+ */
 export function UserMenu({ showLinks = true }: { showLinks?: boolean }) {
   const { t } = useLanguage();
   const router = useRouter();
@@ -58,13 +63,15 @@ export function UserMenu({ showLinks = true }: { showLinks?: boolean }) {
     );
   }
 
-  const { name, email } = session.user;
+  const { name, email, image } = session.user;
   const initial = (name || email).trim().charAt(0).toUpperCase();
 
   const signOut = async () => {
     if (signingOut) return;
     setSigningOut(true);
     await authClient.signOut();
+    clearWeather();
+    clearNotifications();
     setSigningOut(false);
     setOpen(false);
     if (PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) router.push("/");
@@ -79,9 +86,9 @@ export function UserMenu({ showLinks = true }: { showLinks?: boolean }) {
         aria-label={t.account.menu}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-leaf to-forest font-semibold text-paper shadow-soft ring-2 ring-paper transition-transform hover:scale-105"
+        className="inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-leaf to-forest font-semibold text-paper shadow-soft ring-2 ring-paper transition-transform hover:scale-105"
       >
-        {initial}
+        <Avatar image={image} initial={initial} />
       </button>
       <AnimatePresence>
         {open && (
@@ -93,11 +100,24 @@ export function UserMenu({ showLinks = true }: { showLinks?: boolean }) {
             transition={{ duration: 0.18 }}
             className="absolute right-0 mt-2 w-60 origin-top-right rounded-2xl bg-white p-2 shadow-lift ring-1 ring-line"
           >
-            <div className="px-3 py-2">
-              <p className="truncate font-semibold text-ink">{name}</p>
-              <p className="truncate text-sm text-ink-faint">{email}</p>
+            <div className="flex items-center gap-3 px-3 py-2">
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-leaf to-forest font-semibold text-paper">
+                <Avatar image={image} initial={initial} />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate font-semibold text-ink">{name}</span>
+                <span className="block truncate text-sm text-ink-faint">{email}</span>
+              </span>
             </div>
             <div className="my-1 h-px bg-line" />
+            <Link
+              href="/profile"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 rounded-xl px-3 py-2 font-medium text-forest transition-colors hover:bg-moss"
+            >
+              <UserRound className="h-4 w-4" /> {t.account.profile}
+            </Link>
             {showLinks && (
               <>
                 {ACCOUNT_LINKS.map(({ href, key, icon: Icon }) => (
@@ -129,4 +149,9 @@ export function UserMenu({ showLinks = true }: { showLinks?: boolean }) {
       </AnimatePresence>
     </div>
   );
+}
+
+function Avatar({ image, initial }: { image?: string | null; initial: string }) {
+  // eslint-disable-next-line @next/next/no-img-element -- a tiny private avatar served by our own API
+  return image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <>{initial}</>;
 }

@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { UserMenu } from "@/components/auth/user-menu";
 import { LogoMark } from "@/components/brand";
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import { WeatherChip } from "@/components/weather/weather-chip";
 import { LanguageToggle } from "@/components/landing/site-header";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { toggleSidebar, useSidebarCollapsed } from "@/lib/sidebar";
@@ -236,6 +238,11 @@ export function AppHeader({ title, actions }: { title: (t: ReturnType<typeof use
         </div>
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           {actions}
+          {/* The chip reads the path, which can suspend while a dynamic route prerenders. */}
+          <Suspense fallback={null}>
+            <WeatherChip />
+          </Suspense>
+          <NotificationBell />
           <UserMenu showLinks={false} />
         </div>
       </div>

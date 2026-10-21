@@ -51,13 +51,13 @@ export function UserGuide() {
   const step = steps[index];
 
   return (
-    <section id="guide" className="relative overflow-hidden bg-cream/70 py-20 sm:py-28">
+    <section id="guide" className="relative overflow-hidden bg-cream/70 py-14 sm:py-28">
       <Leaf tone="leaf" className="pointer-events-none absolute -top-10 -left-10 w-48 opacity-[0.06]" />
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <SectionHeading eyebrow={t.guide.eyebrow} title={t.guide.title} subtitle={t.guide.subtitle} />
 
-        <Reveal className="mt-14">
-          <div onKeyDown={onKeyDown} className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
+        <Reveal className="mt-8 sm:mt-14">
+          <div onKeyDown={onKeyDown} className="grid grid-cols-1 items-center gap-6 sm:gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-16">
             {/* Step list */}
             <ol className="order-2 space-y-2 lg:order-1">
               {steps.map((s, i) => {
@@ -69,7 +69,7 @@ export function UserGuide() {
                       type="button"
                       onClick={() => goTo(i)}
                       aria-current={active ? "step" : undefined}
-                      className={`flex w-full items-start gap-4 rounded-2xl p-4 text-left transition-all ${
+                      className={`flex w-full items-start gap-3 rounded-2xl p-3 text-left transition-all sm:gap-4 sm:p-4 ${
                         active ? "bg-white shadow-soft ring-1 ring-line" : "hover:bg-white/60"
                       }`}
                     >
@@ -108,7 +108,7 @@ export function UserGuide() {
 
             {/* Phone mock + controls */}
             <div className="order-1 flex flex-col items-center lg:order-2">
-              <div className="relative h-[27rem] w-[15.5rem] rounded-[2.6rem] bg-ink p-2.5 shadow-lift sm:h-[29rem] sm:w-[16.5rem]">
+              <div className="relative h-[22rem] w-[13rem] rounded-[2.4rem] bg-ink p-2 shadow-lift sm:h-[29rem] sm:w-[16.5rem] sm:rounded-[2.6rem] sm:p-2.5">
                 <div className="absolute top-4 left-1/2 z-10 h-5 w-20 -translate-x-1/2 rounded-full bg-ink" />
                 <div className="relative h-full overflow-hidden rounded-[2.1rem] bg-paper">
                   <AnimatePresence mode="popLayout" initial={false} custom={direction}>
@@ -139,7 +139,7 @@ export function UserGuide() {
                 </div>
               </div>
 
-              <div className="mt-7 w-full max-w-xs">
+              <div className="mt-5 w-full max-w-xs sm:mt-7">
                 <div className="flex items-center justify-between text-sm text-ink-soft">
                   <span aria-live="polite">{t.guide.stepOf(formatNumber(index + 1, lang), formatNumber(steps.length, lang))}</span>
                 </div>

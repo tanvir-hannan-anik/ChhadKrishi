@@ -14,9 +14,9 @@ export function CallToAction() {
   const { t } = useLanguage();
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-24">
+    <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-24">
       <Reveal>
-        <div className="relative isolate overflow-hidden rounded-[2rem] bg-forest px-6 py-14 text-center sm:px-12 sm:py-20">
+        <div className="relative isolate overflow-hidden rounded-[2rem] bg-forest px-5 py-10 text-center sm:px-12 sm:py-20">
           <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(60%_80%_at_50%_0%,rgb(122_194_26/0.35),transparent)]" />
           <Leaf tone="lime" className="pointer-events-none absolute -top-6 -left-6 w-28 origin-bottom-left animate-sway opacity-30" />
           <Leaf tone="leaf" className="pointer-events-none absolute -right-8 -bottom-8 w-40 -scale-x-100 opacity-40" />
@@ -44,6 +44,7 @@ export function SiteFooter() {
   const links = [
     { href: "#benefits", label: t.nav.benefits },
     { href: "#features", label: t.nav.features },
+    { href: "#weather", label: t.landingWeather.nav },
     { href: "#how-it-works", label: t.nav.how },
     { href: "#guide", label: t.nav.guide },
   ];

@@ -9,6 +9,7 @@ import { AppHeader } from "@/components/app-header";
 import { toast } from "@/components/app/toaster";
 import { Card, secondaryButton } from "@/components/app/ui";
 import { EASE_OUT } from "@/components/motion/reveal";
+import { WeatherCard } from "@/components/weather/weather-card";
 import type { CareTask } from "@/lib/care/store";
 import type { ConversationSummary } from "@/lib/chat/store";
 import { apiFetch } from "@/lib/client-api";
@@ -50,6 +51,10 @@ export function DashboardView(props: DashboardProps) {
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE_OUT }}>
           <h1 className="font-display text-2xl text-ink sm:text-4xl">{d.greeting(props.name)}</h1>
           <p className="mt-1 text-sm text-ink-soft sm:mt-2 sm:text-base">{d.subtitle}</p>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE_OUT, delay: 0.04 }} className="mt-5 sm:mt-6">
+          <WeatherCard />
         </motion.div>
 
         {/* AI first: one tap into the chat, then the main AI features. */}

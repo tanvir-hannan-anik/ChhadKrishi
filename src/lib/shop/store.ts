@@ -1,8 +1,9 @@
 import "server-only";
 
 import { db } from "@/lib/db";
+import { productImage, type ProductCategory } from "@/lib/shop/catalogue";
 
-export type ProductCategory = "seed" | "pot" | "fertilizer";
+export type { ProductCategory };
 
 export interface Product {
   id: string;
@@ -10,6 +11,8 @@ export interface Product {
   nameEn: string;
   category: ProductCategory;
   priceBdt: number;
+  /** Photo path under /public, or null when the product has none. */
+  image: string | null;
 }
 
 export interface CartLine extends Product {
@@ -32,7 +35,7 @@ export const MAX_QUANTITY = 20;
 
 export async function listProducts(): Promise<Product[]> {
   const rows = await db.selectFrom("shop_product").selectAll().where("active", "=", true).orderBy("category").orderBy("price_bdt").execute();
-  return rows.map((r) => ({ id: r.id, nameBn: r.name_bn, nameEn: r.name_en, category: r.category, priceBdt: r.price_bdt }));
+  return rows.map((r) => ({ id: r.id, nameBn: r.name_bn, nameEn: r.name_en, category: r.category, priceBdt: r.price_bdt, image: productImage(r.id) }));
 }
 
 export async function getCart(userId: string): Promise<CartLine[]> {
@@ -44,7 +47,7 @@ export async function getCart(userId: string): Promise<CartLine[]> {
     .where("shop_product.active", "=", true)
     .orderBy("shop_product.name_en")
     .execute();
-  return rows.map((r) => ({ id: r.id, nameBn: r.name_bn, nameEn: r.name_en, category: r.category, priceBdt: r.price_bdt, quantity: r.quantity }));
+  return rows.map((r) => ({ id: r.id, nameBn: r.name_bn, nameEn: r.name_en, category: r.category, priceBdt: r.price_bdt, image: productImage(r.id), quantity: r.quantity }));
 }
 
 /** Sets a line's quantity (0 removes it). Returns false for unknown or inactive products. */

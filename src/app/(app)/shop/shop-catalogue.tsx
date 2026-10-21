@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { CheckCircle2, Info, Minus, Package, Plus, ShoppingCart, Sprout as SproutIcon, Trash2, Wheat } from "lucide-react";
+import { CheckCircle2, ExternalLink, Info, Minus, Package, Plus, ShoppingCart, Shovel, Sprout as SproutIcon, Trash2, Wheat } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { toast } from "@/components/app/toaster";
 import { FieldError, FieldLabel, Spinner, inputClass, primaryButton, secondaryButton } from "@/components/app/ui";
@@ -11,10 +12,11 @@ import { EASE_OUT, Reveal } from "@/components/motion/reveal";
 import { apiFetch } from "@/lib/client-api";
 import { formatNumber, type Lang, type ShopCategory } from "@/lib/i18n/dictionary";
 import { useLanguage } from "@/lib/i18n/language-context";
+import { CATALOGUE } from "@/lib/shop/catalogue";
 import type { CartLine, Product } from "@/lib/shop/store";
 
-const ICONS = { seed: SproutIcon, pot: Package, fertilizer: Wheat } as const;
-const TINTS = { seed: "bg-sprout text-forest", pot: "bg-clay/15 text-clay", fertilizer: "bg-moss text-leaf" } as const;
+const ICONS = { seed: SproutIcon, pot: Package, fertilizer: Wheat, tool: Shovel } as const;
+const TINTS = { seed: "bg-sprout text-forest", pot: "bg-clay/15 text-clay", fertilizer: "bg-moss text-leaf", tool: "bg-cream text-clay" } as const;
 const MAX_QUANTITY = 20;
 
 const nameOf = (p: { nameBn: string; nameEn: string }, lang: Lang) => (lang === "bn" ? p.nameBn : p.nameEn);
@@ -109,8 +111,12 @@ export function ShopCatalogue({ userName, products, initialCart }: { userName: s
                     transition={{ duration: 0.3, ease: EASE_OUT }}
                     className={`flex scroll-mt-24 flex-col rounded-3xl bg-white p-4 shadow-soft transition-shadow duration-500 ${highlight === product.id ? "ring-2 ring-leaf shadow-lift" : "ring-1 ring-line"}`}
                   >
-                    <span className={`flex aspect-4/3 items-center justify-center rounded-2xl ${TINTS[product.category]}`}>
-                      <Icon className="h-10 w-10" />
+                    <span className={`relative flex aspect-4/3 items-center justify-center overflow-hidden rounded-2xl ${TINTS[product.category]}`}>
+                      {product.image ? (
+                        <Image src={product.image} alt={nameOf(product, lang)} fill sizes="(min-width: 768px) 14rem, 45vw" className="object-cover" />
+                      ) : (
+                        <Icon className="h-10 w-10" />
+                      )}
                     </span>
                     <p className="mt-3 flex-1 font-medium text-ink">{nameOf(product, lang)}</p>
                     <p className="mt-0.5 font-semibold text-forest">{taka(product.priceBdt, lang)}</p>
@@ -126,11 +132,38 @@ export function ShopCatalogue({ userName, products, initialCart }: { userName: s
               })}
             </AnimatePresence>
           </motion.ul>
+
+          <PhotoCredits products={products} />
         </div>
 
         <CartPanel cart={cart} count={count} pending={pending} onQuantity={(line, n) => void setQuantity(line, n)} onOrdered={() => setCart([])} />
       </main>
     </div>
+  );
+}
+
+/** Attribution for the freely licensed product photos, as their licences require. */
+function PhotoCredits({ products }: { products: Product[] }) {
+  const { t, lang } = useLanguage();
+  const credited = CATALOGUE.filter((item) => products.some((p) => p.id === item.id && p.image));
+  if (credited.length === 0) return null;
+  return (
+    <details className="mt-8 rounded-2xl px-1 text-xs text-ink-faint">
+      <summary className="cursor-pointer font-medium hover:text-forest">{t.cart.photoCredits}</summary>
+      <ul className="mt-2 grid gap-1 sm:grid-cols-2">
+        {credited.map((item) => (
+          <li key={item.id}>
+            <a href={item.credit.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-forest hover:underline">
+              {nameOf(item, lang)} <ExternalLink className="h-3 w-3" aria-hidden />
+            </a>{" "}
+            — {item.credit.author},{" "}
+            <a href={item.credit.licenseUrl} target="_blank" rel="noreferrer license" className="hover:text-forest hover:underline">
+              {item.credit.license}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -200,6 +233,7 @@ function CartPanel({
               <ul className="mt-4 divide-y divide-line">
                 {cart.map((line) => (
                   <li key={line.id} className="flex items-center gap-3 py-3">
+                    {line.image && <Image src={line.image} alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-lg object-cover" />}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-ink">{nameOf(line, lang)}</p>
                       <p className="text-xs text-ink-faint">

@@ -16,10 +16,10 @@ export function HowItWorks() {
   const growth = useSpring(scrollYProgress, { stiffness: 120, damping: 30, restDelta: 0.001 });
 
   return (
-    <section id="how-it-works" className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
+    <section id="how-it-works" className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-28">
       <SectionHeading eyebrow={t.how.eyebrow} title={t.how.title} subtitle={t.how.subtitle} />
 
-      <div ref={trackRef} className="relative mt-16">
+      <div ref={trackRef} className="relative mt-10 sm:mt-16">
         {/* A vine that grows as the reader scrolls: horizontal on desktop, vertical on mobile */}
         <div aria-hidden className="absolute top-7 right-[16.66%] left-[16.66%] hidden h-1 rounded-full bg-moss md:block">
           <motion.div style={{ scaleX: growth }} className="h-full origin-left rounded-full bg-gradient-to-r from-forest via-leaf to-lime" />
@@ -28,7 +28,7 @@ export function HowItWorks() {
           <motion.div style={{ scaleY: growth }} className="h-full origin-top rounded-full bg-gradient-to-b from-forest via-leaf to-lime" />
         </div>
 
-        <StaggerGroup as="ol" className="relative grid gap-10 md:grid-cols-3 md:gap-8">
+        <StaggerGroup as="ol" className="relative grid gap-7 md:grid-cols-3 md:gap-8">
           {t.how.steps.map((step, i) => {
             const Icon = ICONS[i];
             return (

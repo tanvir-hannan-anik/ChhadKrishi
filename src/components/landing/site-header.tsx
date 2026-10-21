@@ -6,6 +6,8 @@ import Link from "next/link";
 import { BookOpenText, LayoutDashboard, Menu, ShoppingBasket, X } from "lucide-react";
 import { UserMenu } from "@/components/auth/user-menu";
 import { LogoMark } from "@/components/brand";
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import { WeatherChip } from "@/components/weather/weather-chip";
 import { authClient } from "@/lib/auth/client";
 import { useAuthGate } from "@/lib/auth/flow";
 import { LANDING_EVENTS } from "@/lib/chat-draft";
@@ -28,6 +30,7 @@ export function SiteHeader() {
     : [
         { href: "#benefits", label: t.nav.benefits, wide: true },
         { href: "#features", label: t.nav.features, wide: false },
+        { href: "#weather", label: t.landingWeather.nav, wide: true },
         { href: "#how-it-works", label: t.nav.how, wide: true },
         { href: "#guide", label: t.nav.guide, wide: true },
       ];
@@ -100,11 +103,17 @@ export function SiteHeader() {
           <div className="hidden sm:block">
             <LanguageToggle />
           </div>
+          {session && (
+            <>
+              <WeatherChip />
+              <NotificationBell />
+            </>
+          )}
           <Link
             href="/dashboard"
             onClick={openDashboard}
             aria-label={t.appNav.dashboard}
-            className="inline-flex h-10 items-center gap-1.5 rounded-full px-2.5 text-sm font-semibold text-forest ring-1 ring-forest/25 transition-colors hover:bg-moss sm:px-3.5"
+            className={`h-10 items-center gap-1.5 rounded-full px-2.5 text-sm font-semibold text-forest ring-1 ring-forest/25 transition-colors hover:bg-moss sm:px-3.5 ${session ? "hidden sm:inline-flex" : "inline-flex"}`}
           >
             <LayoutDashboard className="h-[18px] w-[18px]" /> <span className="hidden sm:inline">{t.appNav.dashboard}</span>
           </Link>

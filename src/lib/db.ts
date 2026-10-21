@@ -5,6 +5,7 @@ import path from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { Kysely, PGliteDialect, PostgresDialect, sql, type ColumnDefinitionBuilder, type ColumnType, type Generated } from "kysely";
 import { Pool } from "pg";
+import { CATALOGUE, type ProductCategory } from "@/lib/shop/catalogue";
 
 /**
  * Production uses Postgres via DATABASE_URL (e.g. Neon). Local development falls back to
@@ -99,7 +100,7 @@ export interface AppDatabase {
     id: string;
     name_bn: string;
     name_en: string;
-    category: "seed" | "pot" | "fertilizer";
+    category: ProductCategory;
     price_bdt: number;
     active: boolean;
   };
@@ -126,6 +127,38 @@ export interface AppDatabase {
     name_en: string;
     unit_price_bdt: number;
     quantity: number;
+  };
+  user_profile: {
+    user_id: string;
+    address: string;
+    latitude: number | null;
+    longitude: number | null;
+    // Short place name shown with the weather, e.g. "ধানমন্ডি, ঢাকা".
+    place_label: string;
+    gardening_years: number | null;
+    // A small, already-compressed image as a data URL (served by /api/profile/avatar).
+    avatar: string | null;
+    updated_at: Timestamp;
+  };
+  notification: {
+    id: string;
+    user_id: string;
+    kind: string;
+    // Values for the bilingual message template (see lib/notifications/messages.ts).
+    params: ColumnType<unknown, string, string>;
+    url: string;
+    // One notification per key and user, e.g. "weather:2026-10-21".
+    dedupe_key: string;
+    created_at: Timestamp;
+    read_at: Timestamp | null;
+  };
+  push_subscription: {
+    endpoint: string;
+    user_id: string;
+    p256dh: string;
+    auth: string;
+    lang: "bn" | "en";
+    created_at: Timestamp;
   };
 }
 
@@ -256,10 +289,50 @@ export async function ensureAppSchema() {
     .addPrimaryKeyConstraint("shop_order_item_pk", ["order_id", "product_id"])
     .execute();
 
-  // The catalogue shown on the landing page, seeded once (sample prices — see shop docs).
+  // --- Profile & notifications ---
+  await db.schema
+    .createTable("user_profile")
+    .ifNotExists()
+    .addColumn("user_id", "text", (c) => userRef(c).primaryKey())
+    .addColumn("address", "text", (c) => c.notNull().defaultTo(""))
+    .addColumn("latitude", "double precision")
+    .addColumn("longitude", "double precision")
+    .addColumn("place_label", "text", (c) => c.notNull().defaultTo(""))
+    .addColumn("gardening_years", "integer")
+    .addColumn("avatar", "text")
+    .addColumn("updated_at", "timestamptz", (c) => c.notNull().defaultTo(sql`now()`))
+    .execute();
+  await db.schema
+    .createTable("notification")
+    .ifNotExists()
+    .addColumn("id", "text", (c) => c.primaryKey())
+    .addColumn("user_id", "text", (c) => userRef(c))
+    .addColumn("kind", "text", (c) => c.notNull())
+    .addColumn("params", "jsonb", (c) => c.notNull())
+    .addColumn("url", "text", (c) => c.notNull().defaultTo(""))
+    .addColumn("dedupe_key", "text", (c) => c.notNull())
+    .addColumn("created_at", "timestamptz", (c) => c.notNull().defaultTo(sql`now()`))
+    .addColumn("read_at", "timestamptz")
+    .execute();
+  await db.schema.createIndex("notification_user_key_idx").ifNotExists().unique().on("notification").columns(["user_id", "dedupe_key"]).execute();
+  await db.schema.createIndex("notification_user_created_idx").ifNotExists().on("notification").columns(["user_id", "created_at"]).execute();
+  await db.schema
+    .createTable("push_subscription")
+    .ifNotExists()
+    .addColumn("endpoint", "text", (c) => c.primaryKey())
+    .addColumn("user_id", "text", (c) => userRef(c))
+    .addColumn("p256dh", "text", (c) => c.notNull())
+    .addColumn("auth", "text", (c) => c.notNull())
+    .addColumn("lang", "text", (c) => c.notNull().defaultTo("bn"))
+    .addColumn("created_at", "timestamptz", (c) => c.notNull().defaultTo(sql`now()`))
+    .execute();
+  await db.schema.createIndex("push_subscription_user_idx").ifNotExists().on("push_subscription").column("user_id").execute();
+
+  // The shop catalogue, seeded once per product (sample prices — see shop docs). New catalogue
+  // entries are added on the next start; existing rows keep any price edited in the database.
   await db
     .insertInto("shop_product")
-    .values(SEED_PRODUCTS)
+    .values(CATALOGUE.map((p) => ({ id: p.id, name_bn: p.nameBn, name_en: p.nameEn, category: p.category, price_bdt: p.priceBdt, active: true })))
     .onConflict((oc) => oc.column("id").doNothing())
     .execute();
 
@@ -287,12 +360,3 @@ async function lockDownTables() {
     end $$;
   `.execute(db);
 }
-
-const SEED_PRODUCTS = [
-  { id: "seed-tomato-local", name_bn: "দেশি টমেটো বীজ", name_en: "Local tomato seeds", category: "seed" as const, price_bdt: 60, active: true },
-  { id: "seed-green-chilli", name_bn: "কাঁচা মরিচ বীজ", name_en: "Green chilli seeds", category: "seed" as const, price_bdt: 40, active: true },
-  { id: "pot-clay-12in", name_bn: "১২ ইঞ্চি মাটির টব", name_en: "12-inch clay pot", category: "pot" as const, price_bdt: 180, active: true },
-  { id: "pot-grow-bag-5", name_bn: "জিও ব্যাগ (৫টি)", name_en: "Grow bags (5 pcs)", category: "pot" as const, price_bdt: 250, active: true },
-  { id: "fert-vermicompost-5kg", name_bn: "ভার্মিকম্পোস্ট ৫ কেজি", name_en: "Vermicompost 5 kg", category: "fertilizer" as const, price_bdt: 220, active: true },
-  { id: "fert-neem-cake-1kg", name_bn: "নিম খৈল ১ কেজি", name_en: "Neem cake 1 kg", category: "fertilizer" as const, price_bdt: 90, active: true },
-];

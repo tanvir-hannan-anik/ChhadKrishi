@@ -30,6 +30,8 @@ export interface FeatureDictionary {
     care: string;
     shop: string;
     orders: string;
+    weather: string;
+    profile: string;
     home: string;
     openMenu: string;
     closeMenu: string;
@@ -123,6 +125,7 @@ export interface FeatureDictionary {
     total: string;
     checkout: string;
     sampleNote: string;
+    photoCredits: string;
   };
   checkout: {
     title: string;
@@ -191,6 +194,8 @@ const bn: FeatureDictionary = {
     care: "যত্নের রুটিন",
     shop: "কৃষি শপ",
     orders: "আমার অর্ডার",
+    weather: "আবহাওয়া",
+    profile: "আমার প্রোফাইল",
     home: "হোম পেজ",
     openMenu: "মেনু খুলুন",
     closeMenu: "মেনু বন্ধ করুন",
@@ -269,7 +274,7 @@ const bn: FeatureDictionary = {
     addSelected: (n) => `${n}টি কাজ যোগ করুন`,
     discard: "বাদ দিন",
     added: (n) => `${n}টি কাজ রুটিনে যোগ হয়েছে`,
-    remindersNote: "এই পাতায় প্রতিদিনের কাজ দেখা যাবে। ফোনে নোটিফিকেশন এখনো চালু হয়নি।",
+    remindersNote: "যেদিন কাজ থাকবে, সকালে 🔔 নোটিফিকেশনে রিমাইন্ডার পাবেন — প্রোফাইল থেকে ফোনেও চালু করতে পারেন।",
   },
   cart: {
     title: "আপনার কার্ট",
@@ -284,6 +289,7 @@ const bn: FeatureDictionary = {
     total: "মোট",
     checkout: "অর্ডার অনুরোধ করুন",
     sampleNote: "দামগুলো নমুনা — চূড়ান্ত দাম অর্ডার নিশ্চিত করার সময় জানানো হবে।",
+    photoCredits: "ছবির কৃতজ্ঞতা (Wikimedia Commons)",
   },
   checkout: {
     title: "ডেলিভারির তথ্য",
@@ -352,6 +358,8 @@ const en: FeatureDictionary = {
     care: "Care Routine",
     shop: "Garden Shop",
     orders: "My Orders",
+    weather: "Weather",
+    profile: "My Profile",
     home: "Home page",
     openMenu: "Open menu",
     closeMenu: "Close menu",
@@ -430,7 +438,7 @@ const en: FeatureDictionary = {
     addSelected: (n) => `Add ${n} tasks`,
     discard: "Discard",
     added: (n) => `${n} tasks added to your routine`,
-    remindersNote: "Your daily tasks appear on this page. Phone notifications aren't available yet.",
+    remindersNote: "On days with tasks you'll get a morning reminder under 🔔 — turn on phone notifications in your profile.",
   },
   cart: {
     title: "Your cart",
@@ -445,6 +453,7 @@ const en: FeatureDictionary = {
     total: "Total",
     checkout: "Request order",
     sampleNote: "Prices are samples — the final price is confirmed with your order.",
+    photoCredits: "Photo credits (Wikimedia Commons)",
   },
   checkout: {
     title: "Delivery details",
